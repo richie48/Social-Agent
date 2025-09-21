@@ -1,5 +1,5 @@
 # AI Social Agent
-Automated social agent built
+Automated social agent
 
 ### How it works
 The idea here is to have an AI social agent that acts as my personal social media influencer. It would be given context on how to post, who to follow, when to post etc.
