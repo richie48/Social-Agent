@@ -1,1 +1,17 @@
-python-dotenv
+# Core dependencies
+python-dotenv==1.0.0
+transformers>=4.33.2
+torch>=2.8.0  # Latest stable version
+torchvision>=0.17.0
+torchaudio>=2.8.0
+
+# System and optimization
+psutil>=5.9.5
+accelerate>=0.23.0
+sentencepiece>=0.1.99
+protobuf>=4.24.3
+einops>=0.6.1
+
+# Additional requirements for HuggingFace
+tokenizers>=0.14.0
+safetensors>=0.3.3
