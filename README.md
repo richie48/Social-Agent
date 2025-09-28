@@ -1,4 +1,4 @@
-# AI Social Agent
+# Social Agent
 Automated social agent
 
 ### How it works
@@ -17,3 +17,4 @@ python3.12 -m pip install -r requirements.txt
 ```
 python3.12 agent.py
 ```
+
