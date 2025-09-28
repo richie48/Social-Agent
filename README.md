@@ -2,7 +2,7 @@
 Automated social agent
 
 ### How it works
-The idea here is to have an AI social agent that acts as my personal social media influencer. It would be given context on how to post, who to follow, when to post etc.
+The idea here is to have an AI social agent that acts as my personal social media influencer. It would be given context on how to post, when to post, who to follow etc. 
 
 ### How to setup
 Install required packaged
