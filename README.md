@@ -7,6 +7,9 @@ The idea here is to have an AI social agent that acts as my personal social medi
 ### How to setup
 Install required packaged
 ```
+VENV=$HOME/.venvs/social_agent
+python3.12 -m venv $VENV
+source $VENV/bin/activate
 python3.12 -m pip install -r requirements.txt
 ```
 
