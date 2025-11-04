@@ -1,4 +1,4 @@
-from .base import DataSource, StoryResponse
+from .base_datasource import DataSource, StoryResponse
 from .llm_source import LLMDataSource
 from .news_source import NewsDataSource
 

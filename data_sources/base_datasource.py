@@ -17,7 +17,7 @@ class DataSource(ABC):
     @abstractmethod
     def generate_story(self, prompt: str) -> Optional[StoryResponse]:
         """
-        Generate a story response from data source
+        Generate a story response from the provided data source
         """
         pass
     
