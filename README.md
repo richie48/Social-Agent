@@ -1,113 +1,78 @@
-# AI Social Agent
+# Threads Influencer Agent
 
-An AI-powered social media agent that acts as a personal influencer, automatically generating and posting engaging workplace content.
+Autonomous social media agent that generates and posts content on Threads, sourced from Reddit via MCP and enhanced with AI.
 
-## Features
+## Quick Start
 
-- Multiple data sources:
-  - News API integration for real workplace stories
-  - LLM-based content generation
-- Content enhancement using AI
-- Multiple posting destinations:
-  - Thread platforms (e.g., LinkedIn)
-  - Twitter integration
-  - Dry run mode for testing
-- Configurable behavior through environment variables
-
-## Installation
-
-### Requirements
-- Python 3.12+
-- Virtual environment
-
-### Setup
-
-1. Create and activate virtual environment:
 ```bash
-VENV=$HOME/.venvs/social_agent
-python3.12 -m venv $VENV
-source $VENV/bin/activate
-```
-
-2. Install dependencies:
-```bash
-python3.12 -m pip install -r requirements.txt
-```
-
-3. Configure environment variables:
-```bash
+# 1. Configure credentials
 cp .env.example .env
-# Edit .env with your API keys
+# Edit .env and add: THREADS_API_KEY, THREADS_ACCESS_TOKEN, CLAUDE_API_KEY
+
+# 2. Build
+go build -o threads-agent ./cmd/agent
+
+# 3. Run
+./threads-agent
 ```
 
-Required API keys:
-- NEWS_API_KEY for news content
-- THREAD_API_KEY for thread posting
-- TWITTER_API_KEY and TWITTER_API_SECRET for Twitter
+## Running
 
-## Usage
-
-1. Create a prompt file with your story requirements:
 ```bash
-echo "Generate a workplace story about teamwork" > prompt.txt
+# Standard run
+./threads-agent
+
+# Debug mode (verbose logging)
+./threads-agent -debug
+
+# Dry run (no actual posts)
+./threads-agent -dry-run
 ```
 
-2. Run the agent:
+## Local Development
+
 ```bash
-python3.12 agent.py
+# Build
+make build
+
+# Run
+make run
+
+# Test
+go test ./...
+
+# Format
+go fmt ./...
+
+# Lint
+go vet ./...
 ```
 
-3. Choose your data source:
-   - `news`: Fetch and adapt real workplace stories
-   - `llm`: Generate synthetic stories
+## Docker
 
-The agent will generate content and handle it according to your destination configuration (display/post).
-
-## Configuration
-
-### Data Sources
-
-Configure source behavior in `config.py`:
-```python
-SOURCES = {
-    "news": {
-        "type": "news",
-        "enabled": True,
-        # more options...
-    },
-    "llm": {
-        "type": "llm",
-        "enabled": True,
-        # more options...
-    }
-}
+```bash
+docker-compose up -d
+docker-compose logs -f threads-agent
+docker-compose down
 ```
 
-### Destinations
+## Setup
 
-Available destinations:
-- `dry_run`: Display to screen (default)
-- `thread`: Post to thread platforms
-- `twitter`: Post to Twitter
+### Prerequisites
+- Go 1.25+
+- Reddit MCP server running (default: http://localhost:5000)
+- Threads Business Account with API credentials
+- Claude API key from Anthropic
 
-Configure in `config.py`:
-```python
-DESTINATION = {
-    "type": "dry_run",  # or "thread" or "twitter"
-    "config": {
-        # destination-specific options
-    }
-}
+### Environment Variables
+
+Create `.env` from `.env.example`:
+
+```bash
+THREADS_API_KEY=your_business_account_id
+THREADS_ACCESS_TOKEN=your_access_token
+CLAUDE_API_KEY=your_claude_api_key
+REDDIT_MCP_URL=http://localhost:5000
 ```
 
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a pull request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+See `.env.example` for all available options.
