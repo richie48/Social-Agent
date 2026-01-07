@@ -1,4 +1,2 @@
-__pycache__/
 .env
-.venv
-prompt.txt
+social-agent/
