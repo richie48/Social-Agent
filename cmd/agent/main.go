@@ -17,6 +17,18 @@ func main() {
 		dryRun = flag.Bool("dry-run", false, "Run in dry-run mode (no actual posts/actions)")
 		debug  = flag.Bool("debug", false, "Enable debug logging")
 	)
+
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, `Threads Influencer Agent
+
+Usage:
+  social-agent [options]
+
+Options:
+`)
+		flag.PrintDefaults()
+	}
+
 	flag.Parse()
 
 	// Load configuration
@@ -42,22 +54,32 @@ func main() {
 		os.Exit(1)
 	}
 
-	if cfg.ClaudeAPIKey == "" {
-		log.Error("Claude API key not configured. Set CLAUDE_API_KEY")
+	if cfg.GeminiAPIKey == "" {
+		log.Error("Gemini API key not configured. Set GEMINI_API_KEY")
+		os.Exit(1)
+	}
+
+	// Validate Reddit credentials
+	if cfg.RedditClientID == "" || cfg.RedditClientSecret == "" || cfg.RedditUsername == "" || cfg.RedditPassword == "" {
+		log.Error("Reddit API credentials not configured. Set REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_USERNAME, and REDDIT_PASSWORD")
 		os.Exit(1)
 	}
 
 	// Initialize clients
-	redditClient := internal.NewRedditMCP(cfg.RedditMCPURL)
-	log.Info("Reddit MCP client initialized (URL: %s)", cfg.RedditMCPURL)
+	redditClient := internal.NewRedditClient(cfg.RedditClientID, cfg.RedditClientSecret, cfg.RedditUsername, cfg.RedditPassword, cfg.RedditUserAgent)
+	log.Info("Reddit API client initialized")
 
 	threadsClient := internal.NewThreadsClient(cfg.ThreadsAccessToken, cfg.ThreadsAPIKey)
 	log.Info("Threads API client initialized")
 
-	claudeGen := internal.NewClaudeGenerator(cfg.ClaudeAPIKey)
-	log.Info("Claude content generator initialized")
+	geminiGen, err := internal.NewGeminiGenerator(cfg.GeminiAPIKey)
+	if err != nil {
+		log.Error("Failed to initialize Gemini generator: %v", err)
+		os.Exit(1)
+	}
+	log.Info("Gemini content generator initialized")
 
-	postGen := internal.NewAgent(claudeGen, cfg.PostContentTheme)
+	postGen := internal.NewAgent(geminiGen, cfg.PostContentTheme)
 	log.Debug("Post generator initialized with theme: %s", cfg.PostContentTheme)
 
 	// Create scheduler

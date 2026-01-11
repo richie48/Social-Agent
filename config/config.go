@@ -9,17 +9,21 @@ import (
 )
 
 type Config struct {
-	// Reddit MCP Configuration
-	RedditMCPURL      string
-	RedditSubreddits  []string
-	
+	// Reddit API Configuration
+	RedditClientID     string
+	RedditClientSecret string
+	RedditUsername     string
+	RedditPassword     string
+	RedditUserAgent    string
+	RedditSubreddits   []string
+
 	// Threads API Configuration
-	ThreadsAPIKey     string
+	ThreadsAPIKey      string
 	ThreadsAccessToken string
-	
-	// Claude API Configuration
-	ClaudeAPIKey      string
-	
+
+	// Gemini API Configuration
+	GeminiAPIKey string
+
 	// Agent Configuration
 	PostingScheduleHour1 int
 	PostingScheduleHour2 int
@@ -27,21 +31,25 @@ type Config struct {
 	LikePostsPerDay      int
 	MaxContentAgeDays    int
 	PostContentTheme     string
-	
+
 	// Logging
-	LogLevel           string
+	LogLevel string
 }
 
 func Load() (*Config, error) {
 	// Load .env file if it exists
 	_ = godotenv.Load()
-	
+
 	cfg := &Config{
-		RedditMCPURL:       getEnv("REDDIT_MCP_URL", "http://localhost:5000"),
-		RedditSubreddits:   parseStringList(getEnv("REDDIT_SUBREDDITS", "antiwork,WorkplaceViolations")),
-		ThreadsAPIKey:      getEnv("THREADS_API_KEY", ""),
-		ThreadsAccessToken: getEnv("THREADS_ACCESS_TOKEN", ""),
-		ClaudeAPIKey:       getEnv("CLAUDE_API_KEY", ""),
+		RedditClientID:       getEnv("REDDIT_CLIENT_ID", ""),
+		RedditClientSecret:   getEnv("REDDIT_CLIENT_SECRET", ""),
+		RedditUsername:       getEnv("REDDIT_USERNAME", ""),
+		RedditPassword:       getEnv("REDDIT_PASSWORD", ""),
+		RedditUserAgent:      getEnv("REDDIT_USER_AGENT", "ThreadsInfluencerAgent/1.0"),
+		RedditSubreddits:     parseStringList(getEnv("REDDIT_SUBREDDITS", "antiwork,mildlyinfuriating")),
+		ThreadsAPIKey:        getEnv("THREADS_API_KEY", ""),
+		ThreadsAccessToken:   getEnv("THREADS_ACCESS_TOKEN", ""),
+		GeminiAPIKey:         getEnv("GEMINI_API_KEY", ""),
 		PostingScheduleHour1: getEnvInt("POSTING_SCHEDULE_HOUR_1", 8),
 		PostingScheduleHour2: getEnvInt("POSTING_SCHEDULE_HOUR_2", 18),
 		FollowUsersPerDay:    getEnvInt("FOLLOW_USERS_PER_DAY", 3),
@@ -50,7 +58,7 @@ func Load() (*Config, error) {
 		PostContentTheme:     getEnv("POST_CONTENT_THEME", "i work with fools"),
 		LogLevel:             getEnv("LOG_LEVEL", "info"),
 	}
-	
+
 	return cfg, nil
 }
 

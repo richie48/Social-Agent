@@ -2,10 +2,12 @@ package internal
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -21,101 +23,156 @@ type RedditPost struct {
 	URL       string    `json:"url"`
 }
 
-// RedditMCP is a client for the Reddit MCP server.
-type RedditMCP struct {
-	baseURL    string
-	httpClient *http.Client
+// RedditClient is a client for the official Reddit API.
+type RedditClient struct {
+	clientID     string
+	clientSecret string
+	username     string
+	password     string
+	userAgent    string
+	httpClient   *http.Client
+	accessToken  string
+	tokenExpiry  time.Time
 }
 
-type mcpRequest struct {
-	Jsonrpc string                 `json:"jsonrpc"`
-	Method  string                 `json:"method"`
-	Params  map[string]interface{} `json:"params"`
-	ID      int                    `json:"id"`
+type redditAuthResponse struct {
+	AccessToken string `json:"access_token"`
+	ExpiresIn   int    `json:"expires_in"`
+	TokenType   string `json:"token_type"`
 }
 
-type mcpResponse struct {
-	Jsonrpc string          `json:"jsonrpc"`
-	Result  json.RawMessage `json:"result"`
-	Error   *struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-	} `json:"error"`
-	ID int `json:"id"`
+type redditListingData struct {
+	After    string              `json:"after"`
+	Children []redditPostWrapper `json:"children"`
 }
 
-// NewRedditMCP creates a new Reddit MCP client.
-func NewRedditMCP(baseURL string) *RedditMCP {
-	return &RedditMCP{
-		baseURL: baseURL,
+type redditPostWrapper struct {
+	Data redditPostData `json:"data"`
+}
+
+type redditPostData struct {
+	ID         string `json:"id"`
+	Title      string `json:"title"`
+	Selftext   string `json:"selftext"`
+	Author     string `json:"author"`
+	Score      int    `json:"score"`
+	Subreddit  string `json:"subreddit"`
+	CreatedUTC int64  `json:"created_utc"`
+	URL        string `json:"url"`
+}
+
+type redditListing struct {
+	Data redditListingData `json:"data"`
+}
+
+// NewRedditClient creates a new Reddit API client.
+func NewRedditClient(clientID, clientSecret, username, password, userAgent string) *RedditClient {
+	return &RedditClient{
+		clientID:     clientID,
+		clientSecret: clientSecret,
+		username:     username,
+		password:     password,
+		userAgent:    userAgent,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
 	}
 }
 
-// QuerySubreddit retrieves recent posts from a subreddit via MCP.
-func (r *RedditMCP) QuerySubreddit(subreddit string, limit int) ([]RedditPost, error) {
-	req := mcpRequest{
-		Jsonrpc: "2.0",
-		Method:  "reddit/get_posts",
-		Params: map[string]interface{}{
-			"subreddit": subreddit,
-			"limit":     limit,
-			"sort":      "hot",
-		},
-		ID: 1,
-	}
+// authenticate gets a new access token from Reddit.
+func (r *RedditClient) authenticate() error {
+	auth := r.clientID + ":" + r.clientSecret
+	encodedAuth := base64.StdEncoding.EncodeToString([]byte(auth))
 
-	body, err := r.doRequest(req)
+	data := url.Values{}
+	data.Set("grant_type", "password")
+	data.Set("username", r.username)
+	data.Set("password", r.password)
+
+	req, err := http.NewRequest("POST", "https://www.reddit.com/api/v1/access_token",
+		bytes.NewBufferString(data.Encode()))
 	if err != nil {
-		return nil, fmt.Errorf("failed to query subreddit %s: %w", subreddit, err)
+		return err
 	}
 
-	var posts []RedditPost
-	if err := json.Unmarshal(body, &posts); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal posts: %w", err)
+	req.Header.Set("Authorization", "Basic "+encodedAuth)
+	req.Header.Set("User-Agent", r.userAgent)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("authentication request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var authResp redditAuthResponse
+	if err := json.NewDecoder(resp.Body).Decode(&authResp); err != nil {
+		return fmt.Errorf("failed to decode auth response: %w", err)
 	}
 
-	return posts, nil
+	if authResp.AccessToken == "" {
+		return fmt.Errorf("failed to obtain access token")
+	}
+
+	r.accessToken = authResp.AccessToken
+	r.tokenExpiry = time.Now().Add(time.Duration(authResp.ExpiresIn) * time.Second)
+
+	return nil
 }
 
-func (r *RedditMCP) doRequest(req mcpRequest) (json.RawMessage, error) {
-	payload, err := json.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
+// ensureAuthenticated checks if token is valid, re-authenticates if needed.
+func (r *RedditClient) ensureAuthenticated() error {
+	if r.accessToken == "" || time.Now().After(r.tokenExpiry) {
+		return r.authenticate()
+	}
+	return nil
+}
+
+// QuerySubreddit retrieves recent posts from a subreddit using the official Reddit API.
+func (r *RedditClient) QuerySubreddit(subreddit string, limit int) ([]RedditPost, error) {
+	if err := r.ensureAuthenticated(); err != nil {
+		return nil, fmt.Errorf("failed to authenticate: %w", err)
 	}
 
-	httpReq, err := http.NewRequest("POST", r.baseURL, bytes.NewBuffer(payload))
+	url := fmt.Sprintf("https://oauth.reddit.com/r/%s/hot?limit=%d", subreddit, limit)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, err
 	}
 
-	httpReq.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+r.accessToken)
+	req.Header.Set("User-Agent", r.userAgent)
 
-	resp, err := r.httpClient.Do(httpReq)
+	resp, err := r.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, respBody)
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, body)
 	}
 
-	var mcpResp mcpResponse
-	if err := json.Unmarshal(respBody, &mcpResp); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal MCP response: %w", err)
+	var listing redditListing
+	if err := json.NewDecoder(resp.Body).Decode(&listing); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	if mcpResp.Error != nil {
-		return nil, fmt.Errorf("MCP error: %s", mcpResp.Error.Message)
+	var posts []RedditPost
+	for _, child := range listing.Data.Children {
+		post := RedditPost{
+			ID:        child.Data.ID,
+			Title:     child.Data.Title,
+			Content:   child.Data.Selftext,
+			Author:    child.Data.Author,
+			Score:     child.Data.Score,
+			Subreddit: child.Data.Subreddit,
+			CreatedAt: time.Unix(child.Data.CreatedUTC, 0),
+			URL:       "https://reddit.com" + child.Data.URL,
+		}
+		posts = append(posts, post)
 	}
 
-	return mcpResp.Result, nil
+	return posts, nil
 }

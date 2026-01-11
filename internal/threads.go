@@ -11,10 +11,10 @@ import (
 
 // ThreadsClient interacts with the Threads Graph API.
 type ThreadsClient struct {
-	baseURL       string
-	accessToken   string
-	httpClient    *http.Client
-	businessID    string
+	baseURL     string
+	accessToken string
+	httpClient  *http.Client
+	businessID  string
 }
 
 type postRequest struct {

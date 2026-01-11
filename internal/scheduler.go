@@ -12,12 +12,12 @@ import (
 
 // Scheduler manages posting, following, and engagement activities.
 type Scheduler struct {
-	cron          *cron.Cron
-	reddit        *RedditMCP
-	threads       *ThreadsClient
-	agent         *Agent
-	config        SchedulerConfig
-	logger        *Logger
+	cron    *cron.Cron
+	reddit  *RedditClient
+	threads *ThreadsClient
+	agent   *Agent
+	config  SchedulerConfig
+	logger  *Logger
 }
 
 // SchedulerConfig configures the scheduler's behavior.
@@ -32,7 +32,7 @@ type SchedulerConfig struct {
 
 // NewScheduler creates a new scheduler.
 func NewScheduler(
-	reddit *RedditMCP,
+	reddit *RedditClient,
 	threads *ThreadsClient,
 	agent *Agent,
 	config SchedulerConfig,

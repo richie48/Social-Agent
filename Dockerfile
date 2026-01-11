@@ -15,7 +15,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o threads-agent ./cmd/agent
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o social-agent ./cmd/agent
 
 # Final stage
 FROM alpine:latest
@@ -26,11 +26,11 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /root/
 
 # Copy binary from builder
-COPY --from=builder /app/threads-agent .
+COPY --from=builder /app/social-agent .
 
 # Copy .env if exists (optional, can be provided at runtime)
 COPY .env .env.example ./
 
 EXPOSE 8080
 
-CMD ["./threads-agent"]
+CMD ["./social-agent"]

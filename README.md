@@ -1,78 +1,26 @@
-# Threads Influencer Agent
+# Social Agent
 
-Autonomous social media agent that generates and posts content on Threads, sourced from Reddit via MCP and enhanced with AI.
+Autonomous agent that generates and posts content on social media, sourced from Reddit and enhanced with AI.
 
-## Quick Start
+## Prerequisites
 
-```bash
-# 1. Configure credentials
-cp .env.example .env
-# Edit .env and add: THREADS_API_KEY, THREADS_ACCESS_TOKEN, CLAUDE_API_KEY
-
-# 2. Build
-go build -o threads-agent ./cmd/agent
-
-# 3. Run
-./threads-agent
-```
-
-## Running
-
-```bash
-# Standard run
-./threads-agent
-
-# Debug mode (verbose logging)
-./threads-agent -debug
-
-# Dry run (no actual posts)
-./threads-agent -dry-run
-```
-
-## Local Development
-
-```bash
-# Build
-make build
-
-# Run
-make run
-
-# Test
-go test ./...
-
-# Format
-go fmt ./...
-
-# Lint
-go vet ./...
-```
-
-## Docker
-
-```bash
-docker-compose up -d
-docker-compose logs -f threads-agent
-docker-compose down
-```
-
-## Setup
-
-### Prerequisites
-- Go 1.25+
-- Reddit MCP server running (default: http://localhost:5000)
+- Go 1.25 - [Install from golang.org](https://golang.org/doc/install)
+- Reddit account with API credentials (create at https://www.reddit.com/prefs/apps)
 - Threads Business Account with API credentials
-- Claude API key from Anthropic
+- Gemini API key from Google Cloud Console
 
-### Environment Variables
-
-Create `.env` from `.env.example`:
+## How to setup
 
 ```bash
-THREADS_API_KEY=your_business_account_id
-THREADS_ACCESS_TOKEN=your_access_token
-CLAUDE_API_KEY=your_claude_api_key
-REDDIT_MCP_URL=http://localhost:5000
-```
+# Configure credentials
+cp .env.example .env
 
-See `.env.example` for all available options.
+# Build agent
+go build -o social-agent ./cmd/agent
+
+# Run agent
+./social-agent
+
+# See other options
+./social-agent --help
+```

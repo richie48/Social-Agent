@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/anthropics/sdk-go/client"
+	"github.com/google/generative-ai-go/genai"
+	"google.golang.org/api/option"
 )
 
 // ContentGenerator generates Threads posts from Reddit posts.
@@ -70,22 +71,28 @@ func TruncateForThreads(content string, maxChars int) string {
 	return truncated + "..."
 }
 
-// ClaudeGenerator uses Claude to generate posts.
-type ClaudeGenerator struct {
-	client *client.Client
-	model  string
+// GeminiGenerator uses Google's Gemini to generate posts.
+type GeminiGenerator struct {
+	client *genai.Client
+	model  *genai.GenerativeModel
 }
 
-// NewClaudeGenerator creates a new Claude-based generator.
-func NewClaudeGenerator(apiKey string) *ClaudeGenerator {
-	return &ClaudeGenerator{
-		client: client.NewClient(apiKey),
-		model:  "claude-3-5-sonnet-20241022",
+// NewGeminiGenerator creates a new Gemini-based generator.
+func NewGeminiGenerator(apiKey string) (*GeminiGenerator, error) {
+	ctx := context.Background()
+	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
 	}
+
+	return &GeminiGenerator{
+		client: client,
+		model:  client.GenerativeModel("gemini-2.0-flash"),
+	}, nil
 }
 
-// GeneratePost creates a Threads post from a Reddit post using Claude.
-func (cg *ClaudeGenerator) GeneratePost(ctx context.Context, redditPost *RedditPost, theme string) (string, error) {
+// GeneratePost creates a Threads post from a Reddit post using Gemini.
+func (gg *GeminiGenerator) GeneratePost(ctx context.Context, redditPost *RedditPost, theme string) (string, error) {
 	if redditPost == nil {
 		return "", fmt.Errorf("reddit post is nil")
 	}
@@ -108,31 +115,25 @@ Requirements:
 
 Generate ONLY the post content, nothing else.`, theme, redditPost.Title, redditPost.Content)
 
-	resp, err := cg.client.Messages.New(ctx, &client.MessageNewParams{
-		Model:     client.String(cg.model),
-		MaxTokens: client.Int(500),
-		Messages: []client.MessageParam{
-			{
-				Role:    "user",
-				Content: prompt,
-			},
-		},
-	})
-
+	resp, err := gg.model.GenerateContent(ctx, genai.Text(prompt))
 	if err != nil {
-		return "", fmt.Errorf("failed to call Claude API: %w", err)
+		return "", fmt.Errorf("failed to call Gemini API: %w", err)
 	}
 
-	if len(resp.Content) == 0 {
-		return "", fmt.Errorf("empty response from Claude")
+	if len(resp.Candidates) == 0 {
+		return "", fmt.Errorf("empty response from Gemini")
 	}
 
-	textContent, ok := resp.Content[0].(*client.TextBlock)
-	if !ok {
-		return "", fmt.Errorf("unexpected response type from Claude")
+	var generatedPost string
+	if len(resp.Candidates[0].Content.Parts) > 0 {
+		if textPart, ok := resp.Candidates[0].Content.Parts[0].(genai.Text); ok {
+			generatedPost = string(textPart)
+		}
 	}
 
-	generatedPost := textContent.Text
+	if generatedPost == "" {
+		return "", fmt.Errorf("no text content in Gemini response")
+	}
 
 	if len(generatedPost) > 500 {
 		generatedPost = TruncateForThreads(generatedPost, 500)
