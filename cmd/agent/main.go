@@ -6,20 +6,20 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"social-agent/config"
+	"social-agent/internal"
 	"syscall"
-
-	"threads-influencer/config"
-	"threads-influencer/internal"
 )
 
 func main() {
 	var (
 		dryRun = flag.Bool("dry-run", false, "Run in dry-run mode (no actual posts/actions)")
+		test   = flag.Bool("test", false, "Run in test mode (executes routines once and exits)")
 		debug  = flag.Bool("debug", false, "Enable debug logging")
 	)
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Threads Influencer Agent
+		fmt.Fprintf(os.Stderr, `Social Media Agent
 
 Usage:
   social-agent [options]
@@ -45,32 +45,40 @@ Options:
 	}
 	log := internal.NewLogger(logLevel)
 
-	log.Info("Threads Influencer Agent starting...")
-	log.Debug("Configuration loaded. Mode: %s", map[bool]string{true: "dry-run", false: "production"}[*dryRun])
-
-	// Validate required configuration
-	if cfg.ThreadsAPIKey == "" || cfg.ThreadsAccessToken == "" {
-		log.Error("Threads API credentials not configured. Set THREADS_API_KEY and THREADS_ACCESS_TOKEN")
-		os.Exit(1)
+	log.Info("Social Media Agent starting...")
+	mode := "production"
+	if *dryRun {
+		mode = "dry-run"
+	} else if *test {
+		mode = "test"
 	}
+	log.Debug("Configuration loaded. Mode: %s", mode)
 
-	if cfg.GeminiAPIKey == "" {
-		log.Error("Gemini API key not configured. Set GEMINI_API_KEY")
-		os.Exit(1)
-	}
+	// Skip credential validation in test mode
+	if !*test {
+		// Validate required configuration
+		if cfg.TwitterXBearerToken == "" {
+			log.Error("Twitter/X Bearer token not configured. Set TWITTER_X_BEARER_TOKEN")
+			os.Exit(1)
+		}
 
-	// Validate Reddit credentials
-	if cfg.RedditClientID == "" || cfg.RedditClientSecret == "" || cfg.RedditUsername == "" || cfg.RedditPassword == "" {
-		log.Error("Reddit API credentials not configured. Set REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_USERNAME, and REDDIT_PASSWORD")
-		os.Exit(1)
+		if cfg.BlueskyAccessToken == "" || cfg.BlueskyDID == "" {
+			log.Error("Bluesky credentials not configured. Set BLUESKY_ACCESS_TOKEN and BLUESKY_DID")
+			os.Exit(1)
+		}
+
+		if cfg.GeminiAPIKey == "" {
+			log.Error("Gemini API key not configured. Set GEMINI_API_KEY")
+			os.Exit(1)
+		}
 	}
 
 	// Initialize clients
-	redditClient := internal.NewRedditClient(cfg.RedditClientID, cfg.RedditClientSecret, cfg.RedditUsername, cfg.RedditPassword, cfg.RedditUserAgent)
-	log.Info("Reddit API client initialized")
+	twitterXClient := internal.NewTwitterXClient(cfg.TwitterXBearerToken)
+	log.Info("Twitter/X API client initialized")
 
-	threadsClient := internal.NewThreadsClient(cfg.ThreadsAccessToken, cfg.ThreadsAPIKey)
-	log.Info("Threads API client initialized")
+	blueskyClient := internal.NewBlueskyClient(cfg.BlueskyAccessToken, cfg.BlueskyDID)
+	log.Info("Bluesky API client initialized")
 
 	geminiGen, err := internal.NewGeminiGenerator(cfg.GeminiAPIKey)
 	if err != nil {
@@ -87,14 +95,14 @@ Options:
 		PostingHours:      []int{cfg.PostingScheduleHour1, cfg.PostingScheduleHour2},
 		FollowUsersPerDay: cfg.FollowUsersPerDay,
 		LikePostsPerDay:   cfg.LikePostsPerDay,
-		RedditSubreddits:  cfg.RedditSubreddits,
 		MaxContentAgeDays: cfg.MaxContentAgeDays,
 		PostContentTheme:  cfg.PostContentTheme,
+		TestMode:          *test,
 	}
 
 	schedulerAgent := internal.NewScheduler(
-		redditClient,
-		threadsClient,
+		twitterXClient,
+		blueskyClient,
 		postGen,
 		schedulerConfig,
 		log,
@@ -119,7 +127,7 @@ Options:
 	log.Info("  - Posts at: %02d:xx and %02d:xx daily", cfg.PostingScheduleHour1, cfg.PostingScheduleHour2)
 	log.Info("  - Follow %d users daily", cfg.FollowUsersPerDay)
 	log.Info("  - Like %d posts daily", cfg.LikePostsPerDay)
-	log.Info("  - Monitoring subreddits: %v", cfg.RedditSubreddits)
+	log.Info("  - Monitoring Twitter/X work rants")
 
 	// Wait for shutdown signal
 	<-sigChan
@@ -127,5 +135,5 @@ Options:
 	log.Info("Shutdown signal received. Gracefully stopping...")
 	schedulerAgent.Stop()
 
-	log.Info("Threads Influencer Agent stopped.")
+	log.Info("Social Media Agent stopped.")
 }
