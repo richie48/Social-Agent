@@ -1,5 +1,3 @@
-.PHONY: build run run-debug run-dry clean deps fmt
-
 BINARY_NAME=social-agent
 MAIN_PATH=cmd/agent/main.go
 OUTPUT_PATH=./$(BINARY_NAME)
@@ -27,6 +25,10 @@ clean:
 	go clean
 	@echo "Clean complete"
 
+test:
+	@echo "Running system tests..."
+	./tests/system_test.sh
+
 deps:
 	@echo "Downloading dependencies..."
 	go mod download
@@ -36,3 +38,5 @@ fmt:
 	@echo "Formatting code..."
 	go fmt ./...
 	@echo "Formatting complete"
+
+.PHONY: build run run-debug run-dry clean test deps fmt 

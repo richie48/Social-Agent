@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/generative-ai-go/genai"
-	"google.golang.org/api/option"
+	"google.golang.org/genai"
 )
 
 // ContentGenerator generates Threads posts from Reddit posts.
@@ -74,20 +73,20 @@ func TruncateForThreads(content string, maxChars int) string {
 // GeminiGenerator uses Google's Gemini to generate posts.
 type GeminiGenerator struct {
 	client *genai.Client
-	model  *genai.GenerativeModel
 }
 
 // NewGeminiGenerator creates a new Gemini-based generator.
 func NewGeminiGenerator(apiKey string) (*GeminiGenerator, error) {
 	ctx := context.Background()
-	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
+	client, err := genai.NewClient(ctx, &genai.ClientConfig{
+		APIKey: apiKey,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
 	}
 
 	return &GeminiGenerator{
 		client: client,
-		model:  client.GenerativeModel("gemini-2.0-flash"),
 	}, nil
 }
 
@@ -115,7 +114,13 @@ Requirements:
 
 Generate ONLY the post content, nothing else.`, theme, redditPost.Title, redditPost.Content)
 
-	resp, err := gg.model.GenerateContent(ctx, genai.Text(prompt))
+	resp, err := gg.client.Models.GenerateContent(ctx, "gemini-2.5-flash", []*genai.Content{
+		{
+			Parts: []*genai.Part{
+				{Text: prompt},
+			},
+		},
+	}, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to call Gemini API: %w", err)
 	}
@@ -126,8 +131,8 @@ Generate ONLY the post content, nothing else.`, theme, redditPost.Title, redditP
 
 	var generatedPost string
 	if len(resp.Candidates[0].Content.Parts) > 0 {
-		if textPart, ok := resp.Candidates[0].Content.Parts[0].(genai.Text); ok {
-			generatedPost = string(textPart)
+		if resp.Candidates[0].Content.Parts[0].Text != "" {
+			generatedPost = resp.Candidates[0].Content.Parts[0].Text
 		}
 	}
 

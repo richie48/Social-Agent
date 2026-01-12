@@ -9,7 +9,7 @@ Autonomous agent that generates and posts content on social media, sourced from 
 - Threads Business Account with API credentials
 - Gemini API key from Google Cloud Console
 
-## How to setup
+## How to Use
 
 ```bash
 # Configure credentials
@@ -23,4 +23,7 @@ go build -o social-agent ./cmd/agent
 
 # See other options
 ./social-agent --help
+
+# Run system test
+./tests/system_test.sh
 ```
