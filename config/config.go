@@ -1,25 +1,19 @@
 package config
 
 import (
+	"github.com/joho/godotenv"
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	// Reddit API Configuration
-	RedditClientID     string
-	RedditClientSecret string
-	RedditUsername     string
-	RedditPassword     string
-	RedditUserAgent    string
-	RedditSubreddits   []string
+	// Twitter/X API Configuration
+	TwitterXBearerToken string
 
-	// Threads API Configuration
-	ThreadsAPIKey      string
-	ThreadsAccessToken string
+	// Bluesky API Configuration
+	BlueskyAccessToken string
+	BlueskyDID         string
 
 	// Gemini API Configuration
 	GeminiAPIKey string
@@ -41,14 +35,9 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	cfg := &Config{
-		RedditClientID:       getEnv("REDDIT_CLIENT_ID", ""),
-		RedditClientSecret:   getEnv("REDDIT_CLIENT_SECRET", ""),
-		RedditUsername:       getEnv("REDDIT_USERNAME", ""),
-		RedditPassword:       getEnv("REDDIT_PASSWORD", ""),
-		RedditUserAgent:      getEnv("REDDIT_USER_AGENT", "ThreadsInfluencerAgent/1.0"),
-		RedditSubreddits:     parseStringList(getEnv("REDDIT_SUBREDDITS", "antiwork,mildlyinfuriating")),
-		ThreadsAPIKey:        getEnv("THREADS_API_KEY", ""),
-		ThreadsAccessToken:   getEnv("THREADS_ACCESS_TOKEN", ""),
+		TwitterXBearerToken:  getEnv("TWITTER_X_BEARER_TOKEN", ""),
+		BlueskyAccessToken:   getEnv("BLUESKY_ACCESS_TOKEN", ""),
+		BlueskyDID:           getEnv("BLUESKY_DID", ""),
 		GeminiAPIKey:         getEnv("GEMINI_API_KEY", ""),
 		PostingScheduleHour1: getEnvInt("POSTING_SCHEDULE_HOUR_1", 8),
 		PostingScheduleHour2: getEnvInt("POSTING_SCHEDULE_HOUR_2", 18),

@@ -3,21 +3,34 @@ package internal
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/rand"
 	"time"
 
 	"github.com/robfig/cron/v3"
 )
 
+// SocialMediaClient defines the interface for social media clients.
+type SocialMediaClient interface {
+	CreatePost(text string) (string, error)
+	FollowUser(userHandle string) error
+	LikePost(postID string) error
+	GetRecentPosts(limit int) ([]string, error)
+}
+
 // Scheduler manages posting, following, and engagement activities.
 type Scheduler struct {
-	cron    *cron.Cron
-	reddit  *RedditClient
-	threads *ThreadsClient
-	agent   *Agent
-	config  SchedulerConfig
-	logger  *Logger
+	cron          *cron.Cron
+	contentSource ContentSource
+	socialMedia   SocialMediaClient
+	agent         *Agent
+	config        SchedulerConfig
+	logger        *Logger
+	testMode      bool
+}
+
+// ContentSource defines the interface for content source clients.
+type ContentSource interface {
+	QueryWorkRantTweets(limit int) ([]Post, error)
 }
 
 // SchedulerConfig configures the scheduler's behavior.
@@ -25,15 +38,15 @@ type SchedulerConfig struct {
 	PostingHours      []int
 	FollowUsersPerDay int
 	LikePostsPerDay   int
-	RedditSubreddits  []string
 	MaxContentAgeDays int
 	PostContentTheme  string
+	TestMode          bool
 }
 
 // NewScheduler creates a new scheduler.
 func NewScheduler(
-	reddit *RedditClient,
-	threads *ThreadsClient,
+	contentSource ContentSource,
+	socialMedia SocialMediaClient,
 	agent *Agent,
 	config SchedulerConfig,
 	logger *Logger,
@@ -43,17 +56,28 @@ func NewScheduler(
 	}
 
 	return &Scheduler{
-		cron:    cron.New(),
-		reddit:  reddit,
-		threads: threads,
-		agent:   agent,
-		config:  config,
-		logger:  logger,
+		cron:          cron.New(),
+		contentSource: contentSource,
+		socialMedia:   socialMedia,
+		agent:         agent,
+		config:        config,
+		logger:        logger,
+		testMode:      config.TestMode,
 	}
 }
 
 // Start initializes and starts the scheduler.
 func (s *Scheduler) Start(ctx context.Context) error {
+	// In test mode, run routines once and return
+	if s.testMode {
+		s.logger.Info("test mode: running routines once")
+		s.postRoutine(ctx)
+		s.followRoutine(ctx)
+		s.likeRoutine(ctx)
+		s.logger.Info("test mode: all routines completed")
+		return nil
+	}
+
 	for _, hour := range s.config.PostingHours {
 		minute := rand.Intn(60)
 		cronSpec := fmt.Sprintf("%d %d * * *", minute, hour)
@@ -112,27 +136,19 @@ func (s *Scheduler) Stop() {
 func (s *Scheduler) postRoutine(ctx context.Context) {
 	s.logger.Info("starting post creation routine")
 
-	if len(s.config.RedditSubreddits) == 0 {
-		s.logger.Error("no subreddits configured")
-		return
-	}
-
-	subreddit := s.config.RedditSubreddits[rand.Intn(len(s.config.RedditSubreddits))]
-	s.logger.Debug("querying subreddit: %s", subreddit)
-
-	posts, err := s.reddit.QuerySubreddit(subreddit, 10)
+	posts, err := s.contentSource.QueryWorkRantTweets(10)
 	if err != nil {
-		s.logger.Error("failed to query Reddit: %v", err)
+		s.logger.Error("failed to query Twitter/X: %v", err)
 		return
 	}
 
 	if len(posts) == 0 {
-		s.logger.Error("no posts found in subreddit %s", subreddit)
+		s.logger.Error("no work rant posts found on Twitter/X")
 		return
 	}
 
 	cutoffTime := time.Now().AddDate(0, 0, -s.config.MaxContentAgeDays)
-	var recentPosts []*RedditPost
+	var recentPosts []*Post
 	for i, post := range posts {
 		if post.CreatedAt.After(cutoffTime) {
 			recentPosts = append(recentPosts, &posts[i])
@@ -140,12 +156,12 @@ func (s *Scheduler) postRoutine(ctx context.Context) {
 	}
 
 	if len(recentPosts) == 0 {
-		s.logger.Error("no recent posts found in subreddit %s", subreddit)
+		s.logger.Error("no recent work rant posts found on Twitter/X")
 		return
 	}
 
 	selectedPost := recentPosts[rand.Intn(len(recentPosts))]
-	s.logger.Debug("selected post: %s", selectedPost.Title)
+	s.logger.Debug("selected post: %s", selectedPost.Content)
 
 	generatedPost, err := s.agent.Generate(ctx, selectedPost)
 	if err != nil {
@@ -153,32 +169,28 @@ func (s *Scheduler) postRoutine(ctx context.Context) {
 		return
 	}
 
-	postID, err := s.threads.CreatePost(generatedPost.Content)
+	postID, err := s.socialMedia.CreatePost(generatedPost.Content)
 	if err != nil {
-		s.logger.Error("failed to post to Threads: %v", err)
+		s.logger.Error("failed to post to social media: %v", err)
 		return
 	}
 
-	s.logger.Info("successfully posted to Threads (ID: %s)", postID)
+	s.logger.Info("successfully posted to social media (ID: %s)", postID)
 }
 
 func (s *Scheduler) followRoutine(ctx context.Context) {
 	s.logger.Info("starting follow routine")
 
-	recentPosts, err := s.reddit.QuerySubreddit("follow_trains", 20)
+	posts, err := s.contentSource.QueryWorkRantTweets(20)
 	if err != nil {
-		s.logger.Debug("follow_trains not found, trying antiwork")
-		recentPosts, err = s.reddit.QuerySubreddit("antiwork", 20)
-		if err != nil {
-			s.logger.Error("failed to fetch posts for follow routine: %v", err)
-			return
-		}
+		s.logger.Error("failed to fetch posts for follow routine: %v", err)
+		return
 	}
 
 	authorMap := make(map[string]bool)
 	var authors []string
-	for _, post := range recentPosts {
-		if !authorMap[post.Author] && post.Author != "[deleted]" {
+	for _, post := range posts {
+		if !authorMap[post.Author] && post.Author != "" {
 			authors = append(authors, post.Author)
 			authorMap[post.Author] = true
 		}
@@ -200,7 +212,7 @@ func (s *Scheduler) followRoutine(ctx context.Context) {
 
 		authors = append(authors[:idx], authors[idx+1:]...)
 
-		err := s.threads.FollowUser(author)
+		err := s.socialMedia.FollowUser(author)
 		if err != nil {
 			s.logger.Error("failed to follow user %s: %v", author, err)
 			continue
@@ -215,7 +227,7 @@ func (s *Scheduler) followRoutine(ctx context.Context) {
 func (s *Scheduler) likeRoutine(ctx context.Context) {
 	s.logger.Info("starting like routine")
 
-	postIDs, err := s.threads.GetRecentPosts(50)
+	postIDs, err := s.socialMedia.GetRecentPosts(50)
 	if err != nil {
 		s.logger.Error("failed to fetch recent posts: %v", err)
 		return
@@ -237,7 +249,7 @@ func (s *Scheduler) likeRoutine(ctx context.Context) {
 
 		postIDs = append(postIDs[:idx], postIDs[idx+1:]...)
 
-		err := s.threads.LikePost(postID)
+		err := s.socialMedia.LikePost(postID)
 		if err != nil {
 			s.logger.Error("failed to like post %s: %v", postID, err)
 			continue

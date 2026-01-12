@@ -1,12 +1,12 @@
 # Social Agent
 
-Autonomous agent that generates and posts content on social media, sourced from Reddit and enhanced with AI.
+Autonomous agent that generates and posts content on social media, sourced from Twitter/X work rants and enhanced with AI.
 
 ## Prerequisites
 
 - Go 1.25 - [Install from golang.org](https://golang.org/doc/install)
-- Reddit account with API credentials (create at https://www.reddit.com/prefs/apps)
-- Threads Business Account with API credentials
+- Twitter/X API access with Bearer token
+- Bluesky Social Account with API credentials
 - Gemini API key from Google Cloud Console
 
 ## How to Use
