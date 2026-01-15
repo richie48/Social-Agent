@@ -92,7 +92,7 @@ Options:
 
 	// Create scheduler
 	schedulerConfig := internal.SchedulerConfig{
-		PostingHours:      []int{cfg.PostingScheduleHour1, cfg.PostingScheduleHour2},
+		PostingHours:      []int{cfg.PostingScheduleHour},
 		FollowUsersPerDay: cfg.FollowUsersPerDay,
 		LikePostsPerDay:   cfg.LikePostsPerDay,
 		MaxContentAgeDays: cfg.MaxContentAgeDays,
@@ -124,7 +124,7 @@ Options:
 
 	log.Info("Agent is running. Press Ctrl+C to shutdown.")
 	log.Info("Scheduled tasks:")
-	log.Info("  - Posts at: %02d:xx and %02d:xx daily", cfg.PostingScheduleHour1, cfg.PostingScheduleHour2)
+	log.Info("  - Posts at: %02d:xx daily", cfg.PostingScheduleHour)
 	log.Info("  - Follow %d users daily", cfg.FollowUsersPerDay)
 	log.Info("  - Like %d posts daily", cfg.LikePostsPerDay)
 	log.Info("  - Monitoring Twitter/X work rants")
