@@ -22,8 +22,11 @@ if [ ! -f "${BINARY}" ]; then
 fi
 
 # TODO: Improve this tests 
-echo "Testing dry-run mode..."
-exec "${BINARY}" -dry-run 2>&1 | grep -q "not configured" || true
+echo "Running in test mode..."
+exec "${BINARY}" -test-mode 2>&1 || {
+    echo "Error: Application failed to run in test mode"
+    exit 1
+}
 
 echo "Cleaning up executable..."
 rm -f "${BINARY}"
