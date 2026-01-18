@@ -13,7 +13,7 @@ import (
 
 func main() {
 	const (
-		testMode   = flag.Bool("test-mode", false, "Run in test mode (executes routines once and exits)")
+		testMode = flag.Bool("test-mode", false, "Run in test mode (executes routines once and exits)")
 	)
 	flag.Usage = func() {
 		fmt.Println("Social Media Agent\nUsage:\nsocial-agent [options]\nOptions:")
