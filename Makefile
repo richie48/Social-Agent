@@ -11,6 +11,14 @@ run: build
 	@echo "Starting Social Agent..."
 	./$(OUTPUT_PATH)
 
+run-debug: build
+	@echo "Starting Social Agent (Debug Mode)..."
+	./$(OUTPUT_PATH) -debug
+
+run-dry: build
+	@echo "Starting Social Agent (Dry-Run Mode)..."
+	./$(OUTPUT_PATH) -dry-run
+
 clean:
 	@echo "Cleaning up..."
 	rm -f $(OUTPUT_PATH)
