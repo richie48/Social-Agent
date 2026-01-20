@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"time"
 
@@ -24,7 +25,6 @@ type Scheduler struct {
 	socialMedia   SocialMediaClient
 	agent         *Agent
 	config        SchedulerConfig
-	logger        *Logger
 	testMode      bool
 }
 
@@ -49,19 +49,13 @@ func NewScheduler(
 	socialMedia SocialMediaClient,
 	agent *Agent,
 	config SchedulerConfig,
-	logger *Logger,
 ) *Scheduler {
-	if logger == nil {
-		logger = NewLogger("info")
-	}
-
 	return &Scheduler{
 		cron:          cron.New(),
 		contentSource: contentSource,
 		socialMedia:   socialMedia,
 		agent:         agent,
 		config:        config,
-		logger:        logger,
 		testMode:      config.TestMode,
 	}
 }
@@ -70,11 +64,11 @@ func NewScheduler(
 func (s *Scheduler) Start(ctx context.Context) error {
 	// In test mode, run routines once and return
 	if s.testMode {
-		s.logger.Info("test mode: running routines once")
+		slog.Info("test mode: running routines once")
 		s.postRoutine(ctx)
 		s.followRoutine(ctx)
 		s.likeRoutine(ctx)
-		s.logger.Info("test mode: all routines completed")
+		slog.Info("test mode: all routines completed")
 		return nil
 	}
 
@@ -86,11 +80,11 @@ func (s *Scheduler) Start(ctx context.Context) error {
 			s.postRoutine(context.Background())
 		})
 		if err != nil {
-			s.logger.Error("failed to schedule post at %d:%d - %v", hour, minute, err)
+			slog.Error("failed to schedule post at %d:%d - %v", hour, minute, err)
 			return err
 		}
 
-		s.logger.Info("scheduled post creation at %02d:%02d", hour, minute)
+		slog.Info("scheduled post creation at %02d:%02d", hour, minute)
 	}
 
 	followHour := 9 + rand.Intn(10)
@@ -101,11 +95,11 @@ func (s *Scheduler) Start(ctx context.Context) error {
 		s.followRoutine(context.Background())
 	})
 	if err != nil {
-		s.logger.Error("failed to schedule follow routine - %v", err)
+		slog.Error("failed to schedule follow routine - %v", err)
 		return err
 	}
 
-	s.logger.Info("scheduled follow routine at %02d:%02d", followHour, followMin)
+	slog.Info("scheduled follow routine at %02d:%02d", followHour, followMin)
 
 	likeHour := 10 + rand.Intn(9)
 	likeMin := rand.Intn(60)
@@ -115,14 +109,14 @@ func (s *Scheduler) Start(ctx context.Context) error {
 		s.likeRoutine(context.Background())
 	})
 	if err != nil {
-		s.logger.Error("failed to schedule like routine - %v", err)
+		slog.Error("failed to schedule like routine - %v", err)
 		return err
 	}
 
-	s.logger.Info("scheduled like routine at %02d:%02d", likeHour, likeMin)
+	slog.Info("scheduled like routine at %02d:%02d", likeHour, likeMin)
 
 	s.cron.Start()
-	s.logger.Info("scheduler started")
+	slog.Info("scheduler started")
 
 	return nil
 }
@@ -130,20 +124,20 @@ func (s *Scheduler) Start(ctx context.Context) error {
 // Stop gracefully stops the scheduler.
 func (s *Scheduler) Stop() {
 	s.cron.Stop()
-	s.logger.Info("scheduler stopped")
+	slog.Info("scheduler stopped")
 }
 
 func (s *Scheduler) postRoutine(ctx context.Context) {
-	s.logger.Info("starting post creation routine")
+	slog.Info("starting post creation routine")
 
 	posts, err := s.contentSource.QueryWorkRantTweets(10)
 	if err != nil {
-		s.logger.Error("failed to query Twitter/X: %v", err)
+		slog.Error("failed to query Twitter/X: %v", err)
 		return
 	}
 
 	if len(posts) == 0 {
-		s.logger.Error("no work rant posts found on Twitter/X")
+		slog.Error("no work rant posts found on Twitter/X")
 		return
 	}
 
@@ -156,34 +150,34 @@ func (s *Scheduler) postRoutine(ctx context.Context) {
 	}
 
 	if len(recentPosts) == 0 {
-		s.logger.Error("no recent work rant posts found on Twitter/X")
+		slog.Error("no recent work rant posts found on Twitter/X")
 		return
 	}
 
 	selectedPost := recentPosts[rand.Intn(len(recentPosts))]
-	s.logger.Debug("selected post: %s", selectedPost.Content)
+	slog.Debug("selected post: %s", selectedPost.Content)
 
 	generatedPost, err := s.agent.Generate(ctx, selectedPost)
 	if err != nil {
-		s.logger.Error("failed to generate post: %v", err)
+		slog.Error("failed to generate post: %v", err)
 		return
 	}
 
 	postID, err := s.socialMedia.CreatePost(generatedPost.Content)
 	if err != nil {
-		s.logger.Error("failed to post to social media: %v", err)
+		slog.Error("failed to post to social media: %v", err)
 		return
 	}
 
-	s.logger.Info("successfully posted to social media (ID: %s)", postID)
+	slog.Info("successfully posted to social media (ID: %s)", postID)
 }
 
 func (s *Scheduler) followRoutine(ctx context.Context) {
-	s.logger.Info("starting follow routine")
+	slog.Info("starting follow routine")
 
 	posts, err := s.contentSource.QueryWorkRantTweets(20)
 	if err != nil {
-		s.logger.Error("failed to fetch posts for follow routine: %v", err)
+		slog.Error("failed to fetch posts for follow routine: %v", err)
 		return
 	}
 
@@ -197,7 +191,7 @@ func (s *Scheduler) followRoutine(ctx context.Context) {
 	}
 
 	if len(authors) == 0 {
-		s.logger.Error("no valid authors found to follow")
+		slog.Error("no valid authors found to follow")
 		return
 	}
 
@@ -214,27 +208,27 @@ func (s *Scheduler) followRoutine(ctx context.Context) {
 
 		err := s.socialMedia.FollowUser(author)
 		if err != nil {
-			s.logger.Error("failed to follow user %s: %v", author, err)
+			slog.Error("failed to follow user %s: %v", author, err)
 			continue
 		}
 
-		s.logger.Info("followed user: %s", author)
+		slog.Info("followed user: %s", author)
 
 		time.Sleep(time.Duration(2+rand.Intn(3)) * time.Second)
 	}
 }
 
 func (s *Scheduler) likeRoutine(ctx context.Context) {
-	s.logger.Info("starting like routine")
+	slog.Info("starting like routine")
 
 	postIDs, err := s.socialMedia.GetRecentPosts(50)
 	if err != nil {
-		s.logger.Error("failed to fetch recent posts: %v", err)
+		slog.Error("failed to fetch recent posts: %v", err)
 		return
 	}
 
 	if len(postIDs) == 0 {
-		s.logger.Error("no posts found on timeline")
+		slog.Error("no posts found on timeline")
 		return
 	}
 
@@ -251,11 +245,11 @@ func (s *Scheduler) likeRoutine(ctx context.Context) {
 
 		err := s.socialMedia.LikePost(postID)
 		if err != nil {
-			s.logger.Error("failed to like post %s: %v", postID, err)
+			slog.Error("failed to like post %s: %v", postID, err)
 			continue
 		}
 
-		s.logger.Info("liked post: %s", postID)
+		slog.Info("liked post: %s", postID)
 
 		time.Sleep(time.Duration(1+rand.Intn(2)) * time.Second)
 	}

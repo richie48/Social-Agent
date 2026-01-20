@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"social-agent/config"
@@ -12,47 +13,31 @@ import (
 )
 
 func main() {
-	var (
-		dryRun = flag.Bool("dry-run", false, "Run in dry-run mode (no actual posts/actions)")
-		test   = flag.Bool("test", false, "Run in test mode (executes routines once and exits)")
-		debug  = flag.Bool("debug", false, "Enable debug logging")
-	)
-
+	var testMode = flag.Bool("test-mode", false, "Run in test mode (executes routines once and exits)")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Social Media Agent
-
-Usage:
-  social-agent [options]
-
-Options:
-`)
+		fmt.Fprintf(os.Stderr, "Social Media Agent\nUsage:\nsocial-agent [options]\nOptions:")
 		flag.PrintDefaults()
 	}
 
 	flag.Parse()
 
-	// Load configuration
+	// Load configuration and initialize logger
 	cfg, err := config.Load()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
 		os.Exit(1)
 	}
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
 
-	// Initialize logger
-	logLevel := cfg.LogLevel
-	if *debug {
-		logLevel = "debug"
-	}
-	log := internal.NewLogger(logLevel)
-
-	log.Info("Social Media Agent starting...")
+	slog.Info("Social Media Agent starting...")
 	mode := "production"
 	if *dryRun {
 		mode = "dry-run"
 	} else if *test {
 		mode = "test"
 	}
-	log.Debug("Configuration loaded. Mode: %s", mode)
+	slog.Debug("Configuration loaded. Mode: %s", mode)
 
 	// Skip credential validation in test mode
 	if !*test {
@@ -75,20 +60,15 @@ Options:
 
 	// Initialize clients
 	twitterXClient := internal.NewTwitterXClient(cfg.TwitterXBearerToken)
-	log.Info("Twitter/X API client initialized")
-
 	blueskyClient := internal.NewBlueskyClient(cfg.BlueskyAccessToken, cfg.BlueskyDID)
-	log.Info("Bluesky API client initialized")
-
 	geminiGen, err := internal.NewGeminiGenerator(cfg.GeminiAPIKey)
 	if err != nil {
-		log.Error("Failed to initialize Gemini generator: %v", err)
+		slog.Error("Failed to initialize Gemini generator: %v", err)
 		os.Exit(1)
 	}
-	log.Info("Gemini content generator initialized")
-
+	slog.Info("Gemini content generator initialized")
 	postGen := internal.NewAgent(geminiGen, cfg.PostContentTheme)
-	log.Debug("Post generator initialized with theme: %s", cfg.PostContentTheme)
+	slog.Debug("Post generator initialized with theme: %s", cfg.PostContentTheme)
 
 	// Create scheduler
 	schedulerConfig := internal.SchedulerConfig{
@@ -97,7 +77,7 @@ Options:
 		LikePostsPerDay:   cfg.LikePostsPerDay,
 		MaxContentAgeDays: cfg.MaxContentAgeDays,
 		PostContentTheme:  cfg.PostContentTheme,
-		TestMode:          *test,
+		TestMode:          *testMode,
 	}
 
 	schedulerAgent := internal.NewScheduler(
@@ -105,7 +85,6 @@ Options:
 		blueskyClient,
 		postGen,
 		schedulerConfig,
-		log,
 	)
 
 	// Create context for graceful shutdown
@@ -118,22 +97,22 @@ Options:
 
 	// Start the scheduler
 	if err := schedulerAgent.Start(ctx); err != nil {
-		log.Error("Failed to start scheduler: %v", err)
+		slog.Error("Failed to start scheduler: %v", err)
 		os.Exit(1)
 	}
 
-	log.Info("Agent is running. Press Ctrl+C to shutdown.")
-	log.Info("Scheduled tasks:")
-	log.Info("  - Posts at: %02d:xx daily", cfg.PostingScheduleHour)
-	log.Info("  - Follow %d users daily", cfg.FollowUsersPerDay)
-	log.Info("  - Like %d posts daily", cfg.LikePostsPerDay)
-	log.Info("  - Monitoring Twitter/X work rants")
+	slog.Info("Agent is running. Press Ctrl+C to shutdown.")
+	slog.Info("Scheduled tasks:")
+	slog.Info("  - Posts at: %02d:xx daily", cfg.PostingScheduleHour)
+	slog.Info("  - Follow %d users daily", cfg.FollowUsersPerDay)
+	slog.Info("  - Like %d posts daily", cfg.LikePostsPerDay)
+	slog.Info("  - Monitoring Twitter/X work rants")
 
 	// Wait for shutdown signal
 	<-sigChan
 
-	log.Info("Shutdown signal received. Gracefully stopping...")
+	slog.Info("Shutdown signal received. Gracefully stopping...")
 	schedulerAgent.Stop()
 
-	log.Info("Social Media Agent stopped.")
+	slog.Info("Social Media Agent stopped.")
 }

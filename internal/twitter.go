@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
@@ -53,6 +54,7 @@ type twitterXTweetResponse struct {
 
 // NewTwitterXClient creates a new Twitter/X API client.
 func NewTwitterXClient(bearerToken string) *TwitterXClient {
+	slog.Info("Initializing Twitter/X API client")
 	return &TwitterXClient{
 		bearerToken: bearerToken,
 		httpClient: &http.Client{
