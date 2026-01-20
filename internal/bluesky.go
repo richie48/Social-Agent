@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"time"
 )
@@ -49,6 +50,7 @@ type feedResponse struct {
 
 // NewBlueskyClient creates a new Bluesky API client.
 func NewBlueskyClient(accessToken, did string) *BlueskyClient {
+	slog.Info("Initializing Bluesky API client")
 	return &BlueskyClient{
 		baseURL:     "https://bsky.social/xrpc",
 		accessToken: accessToken,
