@@ -21,11 +21,7 @@ func main() {
 	flag.Parse()
 
 	// Load configuration and initialize logger
-	cfg, err := config.Load()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
-		os.Exit(1)
-	}
+	cfg := config.Load()
 	// TODO: Take log level input as a service argument, use to set minimum level
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
@@ -82,7 +78,6 @@ func main() {
 	slog.Info("  - Posts at: %02d:xx daily", cfg.PostingScheduleHour)
 	slog.Info("  - Follow %d users daily", cfg.FollowUsersPerDay)
 	slog.Info("  - Like %d posts daily", cfg.LikePostsPerDay)
-	slog.Info("  - Monitoring Twitter/X work rants")
 
 	// Wait for shutdown signal
 	<-sigChan

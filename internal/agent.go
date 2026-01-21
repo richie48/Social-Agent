@@ -3,9 +3,9 @@ package internal
 import (
 	"context"
 	"fmt"
+	"google.golang.org/genai"
 	"log/slog"
 	"time"
-	"google.golang.org/genai"
 )
 
 // ContentGenerator generates social media posts from Twitter/X posts.
@@ -85,7 +85,7 @@ func NewGeminiGenerator(apiKey string) (*GeminiGenerator, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
 	}
-	
+
 	slog.Info("Initializing gemini content generator")
 	return &GeminiGenerator{
 		client: client,
