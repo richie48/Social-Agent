@@ -29,8 +29,6 @@ func main() {
 	// TODO: Take log level input as a service argument, use to set minimum level
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
-
-	slog.Info("Social Media Agent starting...")
 	slog.Debug("Configuration loaded. Mode: %s", func() string {
 		if *testMode {
 			return "test"
@@ -46,9 +44,7 @@ func main() {
 		slog.Error("Failed to initialize Gemini generator: %v", err)
 		os.Exit(1)
 	}
-	slog.Info("Gemini content generator initialized")
 	postGen := internal.NewAgent(geminiGen, cfg.PostContentTheme)
-	slog.Debug("Post generator initialized with theme: %s", cfg.PostContentTheme)
 
 	// Create scheduler
 	schedulerConfig := internal.SchedulerConfig{

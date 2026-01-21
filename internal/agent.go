@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 	"google.golang.org/genai"
 )
@@ -28,7 +29,7 @@ type GeneratedPost struct {
 
 // NewAgent creates a new post generation agent.
 func NewAgent(contentGen ContentGenerator, theme string) *Agent {
-	slog.Debug("Initializing agent")
+	slog.Debug("Initializing agent with theme: %s", theme)
 	return &Agent{
 		contentGen: contentGen,
 		theme:      theme,
@@ -84,7 +85,8 @@ func NewGeminiGenerator(apiKey string) (*GeminiGenerator, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
 	}
-
+	
+	slog.Info("Initializing gemini content generator")
 	return &GeminiGenerator{
 		client: client,
 	}, nil
