@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"time"
-
 	"google.golang.org/genai"
 )
 
@@ -29,6 +28,7 @@ type GeneratedPost struct {
 
 // NewAgent creates a new post generation agent.
 func NewAgent(contentGen ContentGenerator, theme string) *Agent {
+	slog.Debug("Initializing agent")
 	return &Agent{
 		contentGen: contentGen,
 		theme:      theme,

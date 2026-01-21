@@ -3,11 +3,10 @@ package internal
 import (
 	"context"
 	"fmt"
+	"github.com/robfig/cron/v3"
 	"log/slog"
 	"math/rand"
 	"time"
-
-	"github.com/robfig/cron/v3"
 )
 
 // SocialMediaClient defines the interface for social media clients.
