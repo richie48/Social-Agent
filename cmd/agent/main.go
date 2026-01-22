@@ -18,61 +18,33 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Social Media Agent\nUsage:\nsocial-agent [options]\nOptions:")
 		flag.PrintDefaults()
 	}
-
 	flag.Parse()
 
 	// Load configuration and initialize logger
-	cfg, err := config.Load()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
-		os.Exit(1)
-	}
+	cfg := config.Load()
+	// TODO: Take log level input as a service argument, use to set minimum level
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
-
-	slog.Info("Social Media Agent starting...")
-	mode := "production"
-	if *dryRun {
-		mode = "dry-run"
-	} else if *test {
-		mode = "test"
-	}
-	slog.Debug("Configuration loaded. Mode: %s", mode)
-
-	// Skip credential validation in test mode
-	if !*test {
-		// Validate required configuration
-		if cfg.TwitterXBearerToken == "" {
-			log.Error("Twitter/X Bearer token not configured. Set TWITTER_X_BEARER_TOKEN")
-			os.Exit(1)
+	slog.Debug("Configuration loaded. Mode: %s", func() string {
+		if *testMode {
+			return "test"
 		}
-
-		if cfg.BlueskyAccessToken == "" || cfg.BlueskyDID == "" {
-			log.Error("Bluesky credentials not configured. Set BLUESKY_ACCESS_TOKEN and BLUESKY_DID")
-			os.Exit(1)
-		}
-
-		if cfg.GeminiAPIKey == "" {
-			log.Error("Gemini API key not configured. Set GEMINI_API_KEY")
-			os.Exit(1)
-		}
-	}
+		return "production"
+	})
 
 	// Initialize clients
-	twitterXClient := internal.NewTwitterXClient(cfg.TwitterXBearerToken)
+	twitterClient := internal.NewTwitterClient(cfg.TwitterBearerToken)
 	blueskyClient := internal.NewBlueskyClient(cfg.BlueskyAccessToken, cfg.BlueskyDID)
 	geminiGen, err := internal.NewGeminiGenerator(cfg.GeminiAPIKey)
 	if err != nil {
 		slog.Error("Failed to initialize Gemini generator: %v", err)
 		os.Exit(1)
 	}
-	slog.Info("Gemini content generator initialized")
 	postGen := internal.NewAgent(geminiGen, cfg.PostContentTheme)
-	slog.Debug("Post generator initialized with theme: %s", cfg.PostContentTheme)
 
 	// Create scheduler
 	schedulerConfig := internal.SchedulerConfig{
-		PostingHours:      []int{cfg.PostingScheduleHour},
+		PostingHour:       cfg.PostingScheduleHour,
 		FollowUsersPerDay: cfg.FollowUsersPerDay,
 		LikePostsPerDay:   cfg.LikePostsPerDay,
 		MaxContentAgeDays: cfg.MaxContentAgeDays,
@@ -81,7 +53,7 @@ func main() {
 	}
 
 	schedulerAgent := internal.NewScheduler(
-		twitterXClient,
+		twitterClient,
 		blueskyClient,
 		postGen,
 		schedulerConfig,
@@ -106,7 +78,6 @@ func main() {
 	slog.Info("  - Posts at: %02d:xx daily", cfg.PostingScheduleHour)
 	slog.Info("  - Follow %d users daily", cfg.FollowUsersPerDay)
 	slog.Info("  - Like %d posts daily", cfg.LikePostsPerDay)
-	slog.Info("  - Monitoring Twitter/X work rants")
 
 	// Wait for shutdown signal
 	<-sigChan

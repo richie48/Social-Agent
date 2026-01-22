@@ -3,9 +3,9 @@ package internal
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"google.golang.org/genai"
+	"log/slog"
+	"time"
 )
 
 // ContentGenerator generates social media posts from Twitter/X posts.
@@ -29,6 +29,7 @@ type GeneratedPost struct {
 
 // NewAgent creates a new post generation agent.
 func NewAgent(contentGen ContentGenerator, theme string) *Agent {
+	slog.Debug("Initializing agent with theme: %s", theme)
 	return &Agent{
 		contentGen: contentGen,
 		theme:      theme,
@@ -85,6 +86,7 @@ func NewGeminiGenerator(apiKey string) (*GeminiGenerator, error) {
 		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
 	}
 
+	slog.Info("Initializing gemini content generator")
 	return &GeminiGenerator{
 		client: client,
 	}, nil
