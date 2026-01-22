@@ -44,7 +44,7 @@ func main() {
 
 	// Create scheduler
 	schedulerConfig := internal.SchedulerConfig{
-		PostingHours:      []int{cfg.PostingScheduleHour},
+		PostingHour:       cfg.PostingScheduleHour,
 		FollowUsersPerDay: cfg.FollowUsersPerDay,
 		LikePostsPerDay:   cfg.LikePostsPerDay,
 		MaxContentAgeDays: cfg.MaxContentAgeDays,

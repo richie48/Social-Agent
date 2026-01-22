@@ -34,7 +34,7 @@ type ContentSource interface {
 
 // SchedulerConfig configures the scheduler's behavior.
 type SchedulerConfig struct {
-	PostingHours      []int
+	PostingHour       int
 	FollowUsersPerDay int
 	LikePostsPerDay   int
 	MaxContentAgeDays int
@@ -73,17 +73,17 @@ func (s *Scheduler) Start(ctx context.Context) error {
 
 	for _, hour := range s.config.PostingHours {
 		minute := rand.Intn(60)
-		cronSpec := fmt.Sprintf("%d %d * * *", minute, hour)
+		cronSpec := fmt.Sprintf("%d %d * * *", minute, s.config.PostingHours)
 
 		_, err := s.cron.AddFunc(cronSpec, func() {
 			s.postRoutine(context.Background())
 		})
 		if err != nil {
-			slog.Error("failed to schedule post at %d:%d - %v", hour, minute, err)
+			slog.Error("failed to schedule post at %d:%d - %v", s.config.PostingHours, minute, err)
 			return err
 		}
 
-		slog.Info("scheduled post creation at %02d:%02d", hour, minute)
+		slog.Info("scheduled post creation at %02d:%02d", s.config.PostingHours, minute)
 	}
 
 	followHour := 9 + rand.Intn(10)
