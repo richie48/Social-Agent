@@ -1,4 +1,4 @@
-package internal
+package twitter
 
 import (
 	"encoding/json"
@@ -22,19 +22,24 @@ type Post struct {
 	URL       string    `json:"url"`
 }
 
-// TwitterClient is a client for the Twitter API.
-type TwitterClient struct {
+// ContentSource defines the interface for content source clients.
+type ContentSource interface {
+	QueryWorkRantTweets(limit int) ([]Post, error)
+}
+
+// Client is a client for the Twitter API.
+type Client struct {
 	bearerToken string
 	httpClient  *http.Client
 }
 
-type twitterUser struct {
+type user struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Username string `json:"username"`
 }
 
-type twitterTweetResponse struct {
+type tweetResponse struct {
 	Data []struct {
 		ID            string                 `json:"id"`
 		Text          string                 `json:"text"`
@@ -43,7 +48,7 @@ type twitterTweetResponse struct {
 		AuthorID      string                 `json:"author_id"`
 	} `json:"data"`
 	Includes struct {
-		Users []twitterUser `json:"users"`
+		Users []user `json:"users"`
 	} `json:"includes"`
 	Meta struct {
 		ResultCount int    `json:"result_count"`
@@ -52,10 +57,10 @@ type twitterTweetResponse struct {
 	} `json:"meta"`
 }
 
-// NewTwitterClient creates a new Twitter API client.
-func NewTwitterClient(bearerToken string) *TwitterClient {
+// New creates a new Twitter API client.
+func New(bearerToken string) *Client {
 	slog.Debug("Initializing Twitter API client")
-	return &TwitterClient{
+	return &Client{
 		bearerToken: bearerToken,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
@@ -65,7 +70,7 @@ func NewTwitterClient(bearerToken string) *TwitterClient {
 
 // QueryWorkRantTweets retrieves recent work-related rants from Twitter.
 // It searches for tweets containing keywords about work frustrations.
-func (tc *TwitterClient) QueryWorkRantTweets(limit int) ([]Post, error) {
+func (tc *Client) QueryWorkRantTweets(limit int) ([]Post, error) {
 	// Search for work-related rants
 	query := "(work OR job OR boss OR office OR coworker OR meeting OR deadline) (rant OR frustrated OR tired OR hate OR awful OR nightmare) lang:en -is:retweet"
 
@@ -100,7 +105,7 @@ func (tc *TwitterClient) QueryWorkRantTweets(limit int) ([]Post, error) {
 		return nil, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, body)
 	}
 
-	var tweetResp twitterTweetResponse
+	var tweetResp tweetResponse
 	if err := json.Unmarshal(body, &tweetResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}

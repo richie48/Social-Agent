@@ -8,7 +8,10 @@ import (
 	"os"
 	"os/signal"
 	"social-agent/config"
-	"social-agent/internal"
+	"social-agent/internal/agent"
+	"social-agent/internal/scheduler"
+	"social-agent/internal/social/bluesky"
+	"social-agent/internal/social/twitter"
 	"syscall"
 )
 
@@ -21,7 +24,7 @@ func main() {
 	flag.Parse()
 
 	// Load configuration and initialize logger
-	cfg := config.Load()
+	loadedConfig := config.Load()
 	// TODO: Take log level input as a service argument, use to set minimum level
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
@@ -33,57 +36,47 @@ func main() {
 	})
 
 	// Initialize clients
-	twitterClient := internal.NewTwitterClient(cfg.TwitterBearerToken)
-	blueskyClient := internal.NewBlueskyClient(cfg.BlueskyAccessToken, cfg.BlueskyDID)
-	geminiGen, err := internal.NewGeminiGenerator(cfg.GeminiAPIKey)
+	twitterClient := twitter.New(loadedConfig.TwitterBearerToken)
+	blueskyClient := bluesky.New(loadedConfig.BlueskyAccessToken, loadedConfig.BlueskyDID)
+	postGenerator, err := agent.New(loadedConfig.GeminiAPIKey, loadedConfig.PostContentTheme)
 	if err != nil {
-		slog.Error("Failed to initialize Gemini generator: %v", err)
+		slog.Error("Failed to initialize social agent: %v", err)
 		os.Exit(1)
 	}
-	postGen := internal.NewAgent(geminiGen, cfg.PostContentTheme)
-
-	// Create scheduler
-	schedulerConfig := internal.SchedulerConfig{
-		PostingHour:       cfg.PostingScheduleHour,
-		FollowUsersPerDay: cfg.FollowUsersPerDay,
-		LikePostsPerDay:   cfg.LikePostsPerDay,
-		MaxContentAgeDays: cfg.MaxContentAgeDays,
-		PostContentTheme:  cfg.PostContentTheme,
-		TestMode:          *testMode,
-	}
-
-	schedulerAgent := internal.NewScheduler(
-		twitterClient,
-		blueskyClient,
-		postGen,
-		schedulerConfig,
-	)
 
 	// Create context for graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	schedulerAgent := scheduler.New(
+		twitterClient,
+		blueskyClient,
+		postGenerator,
+		loadedConfig,
+	)
+
+	// In test mode, run routines once and exit
+	if *testMode {
+		slog.Info("test mode: running routines once")
+		schedulerAgent.RunPostRoutine(ctx)
+		schedulerAgent.RunFollowRoutine(ctx)
+		schedulerAgent.RunLikeRoutine(ctx)
+		slog.Info("test mode: all routines completed successfully!")
+		os.Exit(0)
+	}
+
 	// Handle signals for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	// Start the scheduler
 	if err := schedulerAgent.Start(ctx); err != nil {
 		slog.Error("Failed to start scheduler: %v", err)
 		os.Exit(1)
 	}
-
-	slog.Info("Agent is running. Press Ctrl+C to shutdown.")
-	slog.Info("Scheduled tasks:")
-	slog.Info("  - Posts at: %02d:xx daily", cfg.PostingScheduleHour)
-	slog.Info("  - Follow %d users daily", cfg.FollowUsersPerDay)
-	slog.Info("  - Like %d posts daily", cfg.LikePostsPerDay)
 
 	// Wait for shutdown signal
 	<-sigChan
 
 	slog.Info("Shutdown signal received. Gracefully stopping...")
 	schedulerAgent.Stop()
-
-	slog.Info("Social Media Agent stopped.")
 }

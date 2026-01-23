@@ -1,4 +1,4 @@
-package internal
+package bluesky
 
 import (
 	"bytes"
@@ -10,8 +10,16 @@ import (
 	"time"
 )
 
-// BlueskyClient interacts with the Bluesky Social API (ATProto).
-type BlueskyClient struct {
+// SocialMediaClient defines the interface for social media clients.
+type SocialMediaClient interface {
+	CreatePost(text string) (string, error)
+	FollowUser(userHandle string) error
+	LikePost(postID string) error
+	GetRecentPosts(limit int) ([]string, error)
+}
+
+// Client interacts with the Bluesky Social API (ATProto).
+type Client struct {
 	baseURL     string
 	accessToken string
 	did         string
@@ -48,10 +56,10 @@ type feedResponse struct {
 	} `json:"feed"`
 }
 
-// NewBlueskyClient creates a new Bluesky API client.
-func NewBlueskyClient(accessToken, did string) *BlueskyClient {
+// New creates a new Bluesky API client.
+func New(accessToken, did string) *Client {
 	slog.Debug("Initializing Bluesky API client")
-	return &BlueskyClient{
+	return &Client{
 		baseURL:     "https://bsky.social/xrpc",
 		accessToken: accessToken,
 		did:         did,
@@ -62,7 +70,7 @@ func NewBlueskyClient(accessToken, did string) *BlueskyClient {
 }
 
 // CreatePost creates a new post on Bluesky.
-func (bc *BlueskyClient) CreatePost(text string) (string, error) {
+func (bc *Client) CreatePost(text string) (string, error) {
 	url := fmt.Sprintf("%s/com.atproto.repo.createRecord", bc.baseURL)
 
 	record := postRecord{
@@ -118,7 +126,7 @@ func (bc *BlueskyClient) CreatePost(text string) (string, error) {
 }
 
 // FollowUser follows a user on Bluesky.
-func (bc *BlueskyClient) FollowUser(userHandle string) error {
+func (bc *Client) FollowUser(userHandle string) error {
 	// First, resolve the user handle to get their DID
 	url := fmt.Sprintf("%s/com.atproto.identity.resolveHandle", bc.baseURL)
 
@@ -202,7 +210,7 @@ func (bc *BlueskyClient) FollowUser(userHandle string) error {
 }
 
 // LikePost likes a post on Bluesky.
-func (bc *BlueskyClient) LikePost(postURI string) error {
+func (bc *Client) LikePost(postURI string) error {
 	// Parse URI to get repo and collection/rkey
 	url := fmt.Sprintf("%s/com.atproto.repo.createRecord", bc.baseURL)
 
@@ -252,7 +260,7 @@ func (bc *BlueskyClient) LikePost(postURI string) error {
 }
 
 // GetRecentPosts fetches recent posts from the user's feed.
-func (bc *BlueskyClient) GetRecentPosts(limit int) ([]string, error) {
+func (bc *Client) GetRecentPosts(limit int) ([]string, error) {
 	url := fmt.Sprintf("%s/app.bsky.feed.getTimeline", bc.baseURL)
 
 	req, err := http.NewRequest("GET", url, nil)

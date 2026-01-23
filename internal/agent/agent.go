@@ -1,16 +1,17 @@
-package internal
+package agent
 
 import (
 	"context"
 	"fmt"
 	"google.golang.org/genai"
 	"log/slog"
+	"social-agent/internal/social/twitter"
 	"time"
 )
 
 // ContentGenerator generates social media posts from Twitter/X posts.
 type ContentGenerator interface {
-	GeneratePost(ctx context.Context, post *Post, theme string) (string, error)
+	GeneratePost(ctx context.Context, post *twitter.Post, theme string) (string, error)
 }
 
 // Agent generates posts from Twitter/X and posts to social media.
@@ -27,17 +28,38 @@ type GeneratedPost struct {
 	CreatedAt    time.Time
 }
 
-// NewAgent creates a new post generation agent.
-func NewAgent(contentGen ContentGenerator, theme string) *Agent {
+// New creates a new post generation agent with Gemini as the content generator.
+func New(apiKey string, theme string) (*Agent, error) {
+	gen, err := newGemini(apiKey)
+	if err != nil {
+		return nil, err
+	}
+
 	slog.Debug("Initializing agent with theme: %s", theme)
 	return &Agent{
-		contentGen: contentGen,
+		contentGen: gen,
 		theme:      theme,
+	}, nil
+}
+
+// NewGemini creates a new Gemini-based generator.
+func newGemini(apiKey string) (*GeminiGenerator, error) {
+	ctx := context.Background()
+	client, err := genai.NewClient(ctx, &genai.ClientConfig{
+		APIKey: apiKey,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
 	}
+
+	slog.Info("Initializing gemini content generator")
+	return &GeminiGenerator{
+		client: client,
+	}, nil
 }
 
 // Generate creates a social media post from a Twitter/X post.
-func (a *Agent) Generate(ctx context.Context, post *Post) (*GeneratedPost, error) {
+func (a *Agent) Generate(ctx context.Context, post *twitter.Post) (*GeneratedPost, error) {
 	if post == nil {
 		return nil, fmt.Errorf("post is nil")
 	}
@@ -76,24 +98,8 @@ type GeminiGenerator struct {
 	client *genai.Client
 }
 
-// NewGeminiGenerator creates a new Gemini-based generator.
-func NewGeminiGenerator(apiKey string) (*GeminiGenerator, error) {
-	ctx := context.Background()
-	client, err := genai.NewClient(ctx, &genai.ClientConfig{
-		APIKey: apiKey,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
-	}
-
-	slog.Info("Initializing gemini content generator")
-	return &GeminiGenerator{
-		client: client,
-	}, nil
-}
-
 // GeneratePost creates a social media post from a Twitter/X post using Gemini.
-func (gg *GeminiGenerator) GeneratePost(ctx context.Context, post *Post, theme string) (string, error) {
+func (gg *GeminiGenerator) GeneratePost(ctx context.Context, post *twitter.Post, theme string) (string, error) {
 	if post == nil {
 		return "", fmt.Errorf("post is nil")
 	}

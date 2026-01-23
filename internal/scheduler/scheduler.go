@@ -1,4 +1,4 @@
-package internal
+package scheduler
 
 import (
 	"context"
@@ -6,91 +6,58 @@ import (
 	"github.com/robfig/cron/v3"
 	"log/slog"
 	"math/rand"
+	"social-agent/config"
+	"social-agent/internal/agent"
+	"social-agent/internal/social/bluesky"
+	"social-agent/internal/social/twitter"
 	"time"
 )
-
-// SocialMediaClient defines the interface for social media clients.
-type SocialMediaClient interface {
-	CreatePost(text string) (string, error)
-	FollowUser(userHandle string) error
-	LikePost(postID string) error
-	GetRecentPosts(limit int) ([]string, error)
-}
 
 // Scheduler manages posting, following, and engagement activities.
 type Scheduler struct {
 	cron          *cron.Cron
-	contentSource ContentSource
-	socialMedia   SocialMediaClient
-	agent         *Agent
-	config        SchedulerConfig
-	testMode      bool
+	contentSource twitter.ContentSource
+	socialMedia   bluesky.SocialMediaClient
+	postGen       *agent.Agent
+	config        *config.Config
 }
 
-// ContentSource defines the interface for content source clients.
-type ContentSource interface {
-	QueryWorkRantTweets(limit int) ([]Post, error)
-}
-
-// SchedulerConfig configures the scheduler's behavior.
-type SchedulerConfig struct {
-	PostingHour       int
-	FollowUsersPerDay int
-	LikePostsPerDay   int
-	MaxContentAgeDays int
-	PostContentTheme  string
-	TestMode          bool
-}
-
-// NewScheduler creates a new scheduler.
-func NewScheduler(
-	contentSource ContentSource,
-	socialMedia SocialMediaClient,
-	agent *Agent,
-	config SchedulerConfig,
+// New creates a new scheduler.
+func New(
+	contentSource twitter.ContentSource,
+	socialMedia bluesky.SocialMediaClient,
+	postGen *agent.Agent,
+	config *config.Config,
 ) *Scheduler {
 	return &Scheduler{
 		cron:          cron.New(),
 		contentSource: contentSource,
 		socialMedia:   socialMedia,
-		agent:         agent,
+		postGen:       postGen,
 		config:        config,
-		testMode:      config.TestMode,
 	}
 }
 
 // Start initializes and starts the scheduler.
 func (s *Scheduler) Start(ctx context.Context) error {
-	// In test mode, run routines once and return
-	if s.testMode {
-		slog.Info("test mode: running routines once")
-		s.postRoutine(ctx)
-		s.followRoutine(ctx)
-		s.likeRoutine(ctx)
-		slog.Info("test mode: all routines completed")
-		return nil
+	minute := rand.Intn(60)
+	cronSpec := fmt.Sprintf("%d %d * * *", minute, s.config.PostingScheduleHour)
+
+	_, err := s.cron.AddFunc(cronSpec, func() {
+		s.postRoutine(context.Background())
+	})
+	if err != nil {
+		slog.Error("failed to schedule post at %d:%d - %v", s.config.PostingScheduleHour, minute, err)
+		return err
 	}
 
-	for _, hour := range s.config.PostingHours {
-		minute := rand.Intn(60)
-		cronSpec := fmt.Sprintf("%d %d * * *", minute, s.config.PostingHours)
-
-		_, err := s.cron.AddFunc(cronSpec, func() {
-			s.postRoutine(context.Background())
-		})
-		if err != nil {
-			slog.Error("failed to schedule post at %d:%d - %v", s.config.PostingHours, minute, err)
-			return err
-		}
-
-		slog.Info("scheduled post creation at %02d:%02d", s.config.PostingHours, minute)
-	}
+	slog.Info("scheduled post creation at %02d:%02d", s.config.PostingScheduleHour, minute)
 
 	followHour := 9 + rand.Intn(10)
 	followMin := rand.Intn(60)
 	followCron := fmt.Sprintf("%d %d * * *", followMin, followHour)
 
-	_, err := s.cron.AddFunc(followCron, func() {
+	_, err = s.cron.AddFunc(followCron, func() {
 		s.followRoutine(context.Background())
 	})
 	if err != nil {
@@ -126,6 +93,21 @@ func (s *Scheduler) Stop() {
 	slog.Info("scheduler stopped")
 }
 
+// RunPostRoutine exposes postRoutine for testing and direct invocation
+func (s *Scheduler) RunPostRoutine(ctx context.Context) {
+	s.postRoutine(ctx)
+}
+
+// RunFollowRoutine exposes followRoutine for testing and direct invocation
+func (s *Scheduler) RunFollowRoutine(ctx context.Context) {
+	s.followRoutine(ctx)
+}
+
+// RunLikeRoutine exposes likeRoutine for testing and direct invocation
+func (s *Scheduler) RunLikeRoutine(ctx context.Context) {
+	s.likeRoutine(ctx)
+}
+
 func (s *Scheduler) postRoutine(ctx context.Context) {
 	slog.Info("starting post creation routine")
 
@@ -141,7 +123,7 @@ func (s *Scheduler) postRoutine(ctx context.Context) {
 	}
 
 	cutoffTime := time.Now().AddDate(0, 0, -s.config.MaxContentAgeDays)
-	var recentPosts []*Post
+	var recentPosts []*twitter.Post
 	for i, post := range posts {
 		if post.CreatedAt.After(cutoffTime) {
 			recentPosts = append(recentPosts, &posts[i])
@@ -156,7 +138,7 @@ func (s *Scheduler) postRoutine(ctx context.Context) {
 	selectedPost := recentPosts[rand.Intn(len(recentPosts))]
 	slog.Debug("selected post: %s", selectedPost.Content)
 
-	generatedPost, err := s.agent.Generate(ctx, selectedPost)
+	generatedPost, err := s.postGen.Generate(ctx, selectedPost)
 	if err != nil {
 		slog.Error("failed to generate post: %v", err)
 		return
