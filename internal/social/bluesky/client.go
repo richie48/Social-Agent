@@ -91,12 +91,14 @@ func (bc *Client) CreatePost(text string) (string, error) {
 
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal payload: %w", err)
+		slog.Error("failed to marshal payload", "error", err)
+		return "", err
 	}
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payloadBytes))
 	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
+		slog.Error("failed to create request", "error", err)
+		return "", err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -104,22 +106,26 @@ func (bc *Client) CreatePost(text string) (string, error) {
 
 	resp, err := bc.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("request failed: %w", err)
+		slog.Error("request failed", "error", err)
+		return "", err
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to read response: %w", err)
+		slog.Error("failed to read response", "error", err)
+		return "", err
 	}
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return "", fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, body)
+		slog.Error("unexpected status code", "status_code", resp.StatusCode, "body", string(body))
+		return "", err
 	}
 
 	var postResp createPostResponse
 	if err := json.Unmarshal(body, &postResp); err != nil {
-		return "", fmt.Errorf("failed to unmarshal response: %w", err)
+		slog.Error("failed to unmarshal response", "error", err)
+		return "", err
 	}
 
 	return postResp.URI, nil
@@ -132,7 +138,8 @@ func (bc *Client) FollowUser(userHandle string) error {
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return fmt.Errorf("failed to create resolve request: %w", err)
+		slog.Error("failed to create resolve request", "error", err)
+		return err
 	}
 
 	q := req.URL.Query()
@@ -143,24 +150,28 @@ func (bc *Client) FollowUser(userHandle string) error {
 
 	resp, err := bc.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to resolve handle: %w", err)
+		slog.Error("failed to resolve handle", "error", err)
+		return err
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read resolve response: %w", err)
+		slog.Error("failed to read resolve response", "error", err)
+		return err
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to resolve handle %s: %s", userHandle, body)
+		slog.Error("failed to resolve handle", "user_handle", userHandle, "body", string(body))
+		return err
 	}
 
 	var resolveResp struct {
 		DID string `json:"did"`
 	}
 	if err := json.Unmarshal(body, &resolveResp); err != nil {
-		return fmt.Errorf("failed to unmarshal resolve response: %w", err)
+		slog.Error("failed to unmarshal resolve response", "error", err)
+		return err
 	}
 
 	// Now create a follow record
@@ -180,12 +191,14 @@ func (bc *Client) FollowUser(userHandle string) error {
 
 	followBytes, err := json.Marshal(followPayload)
 	if err != nil {
-		return fmt.Errorf("failed to marshal follow payload: %w", err)
+		slog.Error("failed to marshal follow payload", "error", err)
+		return err
 	}
 
 	followReq, err := http.NewRequest("POST", createFollowURL, bytes.NewBuffer(followBytes))
 	if err != nil {
-		return fmt.Errorf("failed to create follow request: %w", err)
+		slog.Error("failed to create follow request", "error", err)
+		return err
 	}
 
 	followReq.Header.Set("Content-Type", "application/json")
@@ -193,17 +206,20 @@ func (bc *Client) FollowUser(userHandle string) error {
 
 	followResp, err := bc.httpClient.Do(followReq)
 	if err != nil {
-		return fmt.Errorf("follow request failed: %w", err)
+		slog.Error("follow request failed", "error", err)
+		return err
 	}
 	defer followResp.Body.Close()
 
 	followBody, err := io.ReadAll(followResp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read follow response: %w", err)
+		slog.Error("failed to read follow response", "error", err)
+		return err
 	}
 
 	if followResp.StatusCode != http.StatusOK && followResp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("unexpected status code %d: %s", followResp.StatusCode, followBody)
+		slog.Error("unexpected status code", "status_code", followResp.StatusCode, "body", string(followBody))
+		return err
 	}
 
 	return nil
@@ -230,12 +246,14 @@ func (bc *Client) LikePost(postURI string) error {
 
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("failed to marshal like payload: %w", err)
+		slog.Error("failed to marshal like payload", "error", err)
+		return err
 	}
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payloadBytes))
 	if err != nil {
-		return fmt.Errorf("failed to create like request: %w", err)
+		slog.Error("failed to create like request", "error", err)
+		return err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -243,17 +261,20 @@ func (bc *Client) LikePost(postURI string) error {
 
 	resp, err := bc.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("like request failed: %w", err)
+		slog.Error("like request failed", "error", err)
+		return err
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read like response: %w", err)
+		slog.Error("failed to read like response", "error", err)
+		return err
 	}
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, body)
+		slog.Error("unexpected status code", "status_code", resp.StatusCode, "body", string(body))
+		return err
 	}
 
 	return nil
@@ -265,7 +286,8 @@ func (bc *Client) GetRecentPosts(limit int) ([]string, error) {
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		slog.Error("failed to create request", "error", err)
+		return nil, err
 	}
 
 	q := req.URL.Query()
@@ -276,22 +298,26 @@ func (bc *Client) GetRecentPosts(limit int) ([]string, error) {
 
 	resp, err := bc.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
+		slog.Error("request failed", "error", err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
+		slog.Error("failed to read response", "error", err)
+		return nil, err
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, body)
+		slog.Error("unexpected status code", "status_code", resp.StatusCode, "body", string(body))
+		return nil, err
 	}
 
 	var feedResp feedResponse
 	if err := json.Unmarshal(body, &feedResp); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+		slog.Error("failed to unmarshal response", "error", err)
+		return nil, err
 	}
 
 	var postURIs []string

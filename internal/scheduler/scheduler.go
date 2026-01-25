@@ -111,7 +111,7 @@ func (s *Scheduler) RunLikeRoutine(ctx context.Context) {
 func (s *Scheduler) postRoutine(ctx context.Context) {
 	slog.Info("starting post creation routine")
 
-	posts, err := s.contentSource.QueryWorkRantTweets(10)
+	posts, err := s.contentSource.QueryWorkRantTweets(3)
 	if err != nil {
 		slog.Error("failed to query Twitter/X: %v", err)
 		return
