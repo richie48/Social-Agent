@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// ContentGenerator generates social media posts from Twitter/X posts.
+// ContentGenerator generates social media posts from Twitter/X posts
 type ContentGenerator interface {
 	GeneratePost(ctx context.Context, post *twitter.Post, theme string) (string, error)
 }
@@ -22,10 +22,8 @@ type Agent struct {
 
 // GeneratedPost is a post ready to be posted to social media.
 type GeneratedPost struct {
-	Content      string
-	SourceURL    string
-	SourceAuthor string
-	CreatedAt    time.Time
+	Content   string
+	CreatedAt time.Time
 }
 
 // New creates a new post generation agent with Gemini as the content generator.
@@ -70,10 +68,8 @@ func (a *Agent) Generate(ctx context.Context, post *twitter.Post) (*GeneratedPos
 	}
 
 	return &GeneratedPost{
-		Content:      socialContent,
-		SourceURL:    post.URL,
-		SourceAuthor: post.Author,
-		CreatedAt:    time.Now(),
+		Content:   socialContent,
+		CreatedAt: time.Now(),
 	}, nil
 }
 

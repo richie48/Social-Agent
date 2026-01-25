@@ -2,54 +2,33 @@ package twitter
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 )
 
-// Post represents a post from a content source (Twitter/X).
+const TWitterSearchUrl = "https://api.twitter.com/2/tweets/search/recent"
+
+// Post represents a post from a content source
 type Post struct {
-	ID        string    `json:"id"`
-	Title     string    `json:"title"`
-	Content   string    `json:"content"`
-	Author    string    `json:"author"`
-	Score     int       `json:"score"`
-	Source    string    `json:"source"`
-	CreatedAt time.Time `json:"created_at"`
-	URL       string    `json:"url"`
+	Content   string
+	Source    string
+	CreatedAt time.Time
 }
 
-// ContentSource defines the interface for content source clients.
+// ContentSource defines the interface for getting content
 type ContentSource interface {
 	QueryWorkRantTweets(limit int) ([]Post, error)
 }
 
-// Client is a client for the Twitter API.
-type Client struct {
-	bearerToken string
-	httpClient  *http.Client
-}
-
-type user struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Username string `json:"username"`
-}
-
 type tweetResponse struct {
 	Data []struct {
-		ID            string                 `json:"id"`
-		Text          string                 `json:"text"`
-		PublicMetrics map[string]interface{} `json:"public_metrics"`
-		CreatedAt     string                 `json:"created_at"`
-		AuthorID      string                 `json:"author_id"`
+		Text      string `json:"text"`
+		CreatedAt string `json:"created_at"`
 	} `json:"data"`
-	Includes struct {
-		Users []user `json:"users"`
-	} `json:"includes"`
 	Meta struct {
 		ResultCount int    `json:"result_count"`
 		NewestID    string `json:"newest_id"`
@@ -57,10 +36,15 @@ type tweetResponse struct {
 	} `json:"meta"`
 }
 
+type twitterClient struct {
+	bearerToken string
+	httpClient  *http.Client
+}
+
 // New creates a new Twitter API client.
-func New(bearerToken string) *Client {
+func New(bearerToken string) *twitterClient {
 	slog.Debug("Initializing Twitter API client")
-	return &Client{
+	return &twitterClient{
 		bearerToken: bearerToken,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
@@ -70,79 +54,57 @@ func New(bearerToken string) *Client {
 
 // QueryWorkRantTweets retrieves recent work-related rants from Twitter.
 // It searches for tweets containing keywords about work frustrations.
-func (tc *Client) QueryWorkRantTweets(limit int) ([]Post, error) {
-	// Search for work-related rants
-	query := "(work OR job OR boss OR office OR coworker OR meeting OR deadline) (rant OR frustrated OR tired OR hate OR awful OR nightmare) lang:en -is:retweet"
-
+func (twitterClient *twitterClient) QueryWorkRantTweets(limit int) ([]Post, error) {
+	// Build query url
 	params := url.Values{}
+	query := "(work OR job OR boss OR office OR coworker OR meeting OR deadline) (rant OR frustrated OR tired OR hate OR awful OR nightmare) lang:en -is:retweet"
 	params.Add("query", query)
-	params.Add("max_results", fmt.Sprintf("%d", limit))
-	params.Add("tweet.fields", "created_at,public_metrics,author_id")
-	params.Add("expansions", "author_id")
-	params.Add("user.fields", "username")
+	params.Add("max_results", strconv.Itoa(limit))
+	params.Add("tweet.fields", "created_at")
+	url := TWitterSearchUrl + params.Encode()
 
-	url := fmt.Sprintf("https://api.twitter.com/2/tweets/search/recent?%s", params.Encode())
-
+	// Send request
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		slog.error("Failed to create request to Twitter API: %v", err)
+		return nil, err
 	}
-
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", tc.bearerToken))
-
-	resp, err := tc.httpClient.Do(req)
+	req.Header.Set("Authorization", "Bearer "+twitterClient.bearerToken)
+	resp, err := twitterClient.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
+		slog.error("Request to Twitter API failed: %v", err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
+	// Verify and parse response
+	if resp.StatusCode != http.StatusOK {
+		slog.error("Twitter API returned unexpected status code: %d", resp.StatusCode)
+		return nil, err
+	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
+		slog.error("Failed to read response body from Twitter API: %v", err)
+		return nil, err
 	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, body)
-	}
-
 	var tweetResp tweetResponse
 	if err := json.Unmarshal(body, &tweetResp); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+		slog.error("Failed to decode Twitter API response: %v", err)
+		return nil, err
 	}
 
-	// Create a map of user IDs to usernames
-	userMap := make(map[string]string)
-	for _, user := range tweetResp.Includes.Users {
-		userMap[user.ID] = user.Username
-	}
-
+	// Store posts
 	var posts []Post
 	for _, tweet := range tweetResp.Data {
-		createdAt, _ := time.Parse(time.RFC3339, tweet.CreatedAt)
-
-		// Get author username from map
-		author := "unknown"
-		if username, ok := userMap[tweet.AuthorID]; ok {
-			author = username
+		createdAt, err := time.Parse(time.RFC3339, tweet.CreatedAt)
+		if err != nil {
+			slog.Warn("Failed to parse tweet created_at timestamp: ", tweet.CreatedAt, "error: ", err)
+			continue
 		}
-
-		// Get engagement metrics (likes)
-		score := 0
-		if metrics, ok := tweet.PublicMetrics["like_count"]; ok {
-			if likeCount, ok := metrics.(float64); ok {
-				score = int(likeCount)
-			}
-		}
-
 		post := Post{
-			ID:        tweet.ID,
-			Title:     "",
 			Content:   tweet.Text,
-			Author:    author,
-			Score:     score,
-			Source:    "Twitter/X",
+			Source:    "Twitter",
 			CreatedAt: createdAt,
-			URL:       fmt.Sprintf("https://twitter.com/%s/status/%s", author, tweet.ID),
 		}
 		posts = append(posts, post)
 	}

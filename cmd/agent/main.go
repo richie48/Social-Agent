@@ -48,7 +48,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	schedulerAgent := scheduler.New(
+	actionScheduler := scheduler.New(
 		twitterClient,
 		blueskyClient,
 		postGenerator,
@@ -58,9 +58,9 @@ func main() {
 	// In test mode, run routines once and exit
 	if *testMode {
 		slog.Info("test mode: running routines once")
-		schedulerAgent.RunPostRoutine(ctx)
-		schedulerAgent.RunFollowRoutine(ctx)
-		schedulerAgent.RunLikeRoutine(ctx)
+		actionScheduler.RunPostRoutine(ctx)
+		actionScheduler.RunFollowRoutine(ctx)
+		actionScheduler.RunLikeRoutine(ctx)
 		slog.Info("test mode: all routines completed successfully!")
 		os.Exit(0)
 	}
@@ -69,7 +69,7 @@ func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	if err := schedulerAgent.Start(ctx); err != nil {
+	if err := actionScheduler.Start(ctx); err != nil {
 		slog.Error("Failed to start scheduler: %v", err)
 		os.Exit(1)
 	}
@@ -78,5 +78,5 @@ func main() {
 	<-sigChan
 
 	slog.Info("Shutdown signal received. Gracefully stopping...")
-	schedulerAgent.Stop()
+	actionScheduler.Stop()
 }
