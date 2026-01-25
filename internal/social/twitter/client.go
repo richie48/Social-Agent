@@ -57,7 +57,7 @@ func New(bearerToken string) *twitterClient {
 func (twitterClient *twitterClient) QueryWorkRantTweets(limit int) ([]Post, error) {
 	// Build query url
 	params := url.Values{}
-	query := "(work OR job OR boss OR office OR coworker OR meeting OR deadline) (rant OR frustrated OR tired OR hate OR awful OR nightmare) lang:en -is:retweet"
+	query := "(work OR job OR boss OR office OR coworker OR meeting OR deadline) (rant OR frustrated OR tired OR hate OR awful OR nightmare) lang:en -is:retweet -filter:videos"
 	params.Add("query", query)
 	params.Add("max_results", strconv.Itoa(limit))
 	params.Add("tweet.fields", "created_at")
