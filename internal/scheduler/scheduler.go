@@ -156,47 +156,9 @@ func (s *Scheduler) postRoutine(ctx context.Context) {
 func (s *Scheduler) followRoutine(ctx context.Context) {
 	slog.Info("starting follow routine")
 
-	posts, err := s.contentSource.QueryWorkRantTweets(20)
-	if err != nil {
-		slog.Error("failed to fetch posts for follow routine: %v", err)
-		return
-	}
-
-	authorMap := make(map[string]bool)
-	var authors []string
-	for _, post := range posts {
-		if !authorMap[post.Author] && post.Author != "" {
-			authors = append(authors, post.Author)
-			authorMap[post.Author] = true
-		}
-	}
-
-	if len(authors) == 0 {
-		slog.Error("no valid authors found to follow")
-		return
-	}
-
-	followCount := s.config.FollowUsersPerDay
-	if followCount > len(authors) {
-		followCount = len(authors)
-	}
-
-	for i := 0; i < followCount; i++ {
-		idx := rand.Intn(len(authors))
-		author := authors[idx]
-
-		authors = append(authors[:idx], authors[idx+1:]...)
-
-		err := s.socialMedia.FollowUser(author)
-		if err != nil {
-			slog.Error("failed to follow user %s: %v", author, err)
-			continue
-		}
-
-		slog.Info("followed user: %s", author)
-
-		time.Sleep(time.Duration(2+rand.Intn(3)) * time.Second)
-	}
+	// Follow routine disabled: post author information is not collected
+	slog.Info("follow routine skipped (author tracking disabled)")
+	return
 }
 
 func (s *Scheduler) likeRoutine(ctx context.Context) {
