@@ -1,5 +1,5 @@
 # Social Agent
-
+<!-- TODO: Work on the entire readme when picture is clearer. For now keeping simple -->
 Autonomous agent that generates and posts content on social media, sourced from Twitter/X work rants and enhanced with AI.
 
 ## Prerequisites
@@ -16,7 +16,7 @@ Autonomous agent that generates and posts content on social media, sourced from 
 cp .env.example .env
 
 # Build agent
-go build -o social-agent ./cmd/agent
+go build -o social-agent ./cmd/agent/main.go
 
 # Run agent
 ./social-agent
@@ -25,5 +25,5 @@ go build -o social-agent ./cmd/agent
 ./social-agent --help
 
 # Run system test
-./tests/system_test.sh
+./tests/system_test.sh /path/to/binary
 ```

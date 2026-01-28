@@ -10,16 +10,15 @@ import (
 	"time"
 )
 
-// SocialMediaClient defines the interface for social media clients.
-type SocialMediaClient interface {
+// ContentDestination defines the interface for content destinations
+type ContentDestination interface {
 	CreatePost(text string) (string, error)
 	FollowUser(userHandle string) error
 	LikePost(postID string) error
 	GetRecentPosts(limit int) ([]string, error)
 }
 
-// Client interacts with the Bluesky Social API (ATProto).
-type Client struct {
+type blueskyClient struct {
 	baseURL     string
 	accessToken string
 	did         string
@@ -57,9 +56,9 @@ type feedResponse struct {
 }
 
 // New creates a new Bluesky API client.
-func New(accessToken, did string) *Client {
+func New(accessToken string, did string) *blueskyClient {
 	slog.Debug("Initializing Bluesky API client")
-	return &Client{
+	return &blueskyClient{
 		baseURL:     "https://bsky.social/xrpc",
 		accessToken: accessToken,
 		did:         did,
@@ -70,8 +69,8 @@ func New(accessToken, did string) *Client {
 }
 
 // CreatePost creates a new post on Bluesky.
-func (bc *Client) CreatePost(text string) (string, error) {
-	url := fmt.Sprintf("%s/com.atproto.repo.createRecord", bc.baseURL)
+func (blueskeyClient *blueskyClient) CreatePost(text string) (string, error) {
+	url := fmt.Sprintf("%s/com.atproto.repo.createRecord", blueskeyClient.baseURL)
 
 	record := postRecord{
 		Type:      "app.bsky.feed.post",
@@ -80,7 +79,7 @@ func (bc *Client) CreatePost(text string) (string, error) {
 	}
 
 	payload := createPostRequest{
-		Repo:       bc.did,
+		Repo:       blueskeyClient.did,
 		Collection: "app.bsky.feed.post",
 		Record: map[string]interface{}(map[string]interface{}{
 			"$type":     record.Type,
@@ -91,80 +90,90 @@ func (bc *Client) CreatePost(text string) (string, error) {
 
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal payload: %w", err)
+		slog.Error("failed to marshal payload", "error", err)
+		return "", err
 	}
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payloadBytes))
 	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
+		slog.Error("failed to create request", "error", err)
+		return "", err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", bc.accessToken))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", blueskeyClient.accessToken))
 
-	resp, err := bc.httpClient.Do(req)
+	resp, err := blueskeyClient.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("request failed: %w", err)
+		slog.Error("request failed", "error", err)
+		return "", err
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to read response: %w", err)
+		slog.Error("failed to read response", "error", err)
+		return "", err
 	}
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return "", fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, body)
+		slog.Error("unexpected status code", "status_code", resp.StatusCode, "body", string(body))
+		return "", err
 	}
 
 	var postResp createPostResponse
 	if err := json.Unmarshal(body, &postResp); err != nil {
-		return "", fmt.Errorf("failed to unmarshal response: %w", err)
+		slog.Error("failed to unmarshal response", "error", err)
+		return "", err
 	}
 
 	return postResp.URI, nil
 }
 
 // FollowUser follows a user on Bluesky.
-func (bc *Client) FollowUser(userHandle string) error {
+func (blueskeyClient *blueskyClient) FollowUser(userHandle string) error {
 	// First, resolve the user handle to get their DID
-	url := fmt.Sprintf("%s/com.atproto.identity.resolveHandle", bc.baseURL)
+	url := fmt.Sprintf("%s/com.atproto.identity.resolveHandle", blueskeyClient.baseURL)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return fmt.Errorf("failed to create resolve request: %w", err)
+		slog.Error("failed to create resolve request", "error", err)
+		return err
 	}
 
 	q := req.URL.Query()
 	q.Add("handle", userHandle)
 	req.URL.RawQuery = q.Encode()
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", blueskeyClient.accessToken))
 
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", bc.accessToken))
-
-	resp, err := bc.httpClient.Do(req)
+	resp, err := blueskeyClient.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to resolve handle: %w", err)
+		slog.Error("failed to resolve handle", "error", err)
+		return err
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read resolve response: %w", err)
+		slog.Error("failed to read resolve response", "error", err)
+		return err
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to resolve handle %s: %s", userHandle, body)
+		slog.Error("failed to resolve handle", "user_handle", userHandle, "body", string(body))
+		return err
 	}
 
 	var resolveResp struct {
 		DID string `json:"did"`
 	}
 	if err := json.Unmarshal(body, &resolveResp); err != nil {
-		return fmt.Errorf("failed to unmarshal resolve response: %w", err)
+		slog.Error("failed to unmarshal resolve response", "error", err)
+		return err
 	}
 
 	// Now create a follow record
-	createFollowURL := fmt.Sprintf("%s/com.atproto.repo.createRecord", bc.baseURL)
+	createFollowURL := fmt.Sprintf("%s/com.atproto.repo.createRecord", blueskeyClient.baseURL)
 
 	followRecord := map[string]interface{}{
 		"$type":     "app.bsky.graph.follow",
@@ -173,46 +182,51 @@ func (bc *Client) FollowUser(userHandle string) error {
 	}
 
 	followPayload := createPostRequest{
-		Repo:       bc.did,
+		Repo:       blueskeyClient.did,
 		Collection: "app.bsky.graph.follow",
 		Record:     followRecord,
 	}
 
 	followBytes, err := json.Marshal(followPayload)
 	if err != nil {
-		return fmt.Errorf("failed to marshal follow payload: %w", err)
+		slog.Error("failed to marshal follow payload", "error", err)
+		return err
 	}
 
 	followReq, err := http.NewRequest("POST", createFollowURL, bytes.NewBuffer(followBytes))
 	if err != nil {
-		return fmt.Errorf("failed to create follow request: %w", err)
+		slog.Error("failed to create follow request", "error", err)
+		return err
 	}
 
 	followReq.Header.Set("Content-Type", "application/json")
-	followReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", bc.accessToken))
+	followReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", blueskeyClient.accessToken))
 
-	followResp, err := bc.httpClient.Do(followReq)
+	followResp, err := blueskeyClient.httpClient.Do(followReq)
 	if err != nil {
-		return fmt.Errorf("follow request failed: %w", err)
+		slog.Error("follow request failed", "error", err)
+		return err
 	}
 	defer followResp.Body.Close()
 
 	followBody, err := io.ReadAll(followResp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read follow response: %w", err)
+		slog.Error("failed to read follow response", "error", err)
+		return err
 	}
 
 	if followResp.StatusCode != http.StatusOK && followResp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("unexpected status code %d: %s", followResp.StatusCode, followBody)
+		slog.Error("unexpected status code", "status_code", followResp.StatusCode, "body", string(followBody))
+		return err
 	}
 
 	return nil
 }
 
 // LikePost likes a post on Bluesky.
-func (bc *Client) LikePost(postURI string) error {
+func (blueskeyClient *blueskyClient) LikePost(postURI string) error {
 	// Parse URI to get repo and collection/rkey
-	url := fmt.Sprintf("%s/com.atproto.repo.createRecord", bc.baseURL)
+	url := fmt.Sprintf("%s/com.atproto.repo.createRecord", blueskeyClient.baseURL)
 
 	likeRecord := map[string]interface{}{
 		"$type": "app.bsky.feed.like",
@@ -223,75 +237,77 @@ func (bc *Client) LikePost(postURI string) error {
 	}
 
 	payload := createPostRequest{
-		Repo:       bc.did,
+		Repo:       blueskeyClient.did,
 		Collection: "app.bsky.feed.like",
 		Record:     likeRecord,
 	}
 
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("failed to marshal like payload: %w", err)
+		slog.Error("failed to marshal like payload", "error", err)
+		return err
 	}
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payloadBytes))
 	if err != nil {
-		return fmt.Errorf("failed to create like request: %w", err)
+		slog.Error("failed to create like request", "error", err)
+		return err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", bc.accessToken))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", blueskeyClient.accessToken))
 
-	resp, err := bc.httpClient.Do(req)
+	resp, err := blueskeyClient.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("like request failed: %w", err)
+		slog.Error("like request failed", "error", err)
+		return err
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read like response: %w", err)
-	}
-
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, body)
+		slog.Error("unexpected status code", "status_code", resp.StatusCode)
+		return err
 	}
-
 	return nil
 }
 
 // GetRecentPosts fetches recent posts from the user's feed.
-func (bc *Client) GetRecentPosts(limit int) ([]string, error) {
-	url := fmt.Sprintf("%s/app.bsky.feed.getTimeline", bc.baseURL)
-
+func (blueskeyClient *blueskyClient) GetRecentPosts(limit int) ([]string, error) {
+	url := fmt.Sprintf("%s/app.bsky.feed.getTimeline", blueskeyClient.baseURL)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		slog.Error("failed to create request", "error", err)
+		return nil, err
 	}
 
 	q := req.URL.Query()
 	q.Add("limit", fmt.Sprintf("%d", limit))
 	req.URL.RawQuery = q.Encode()
 
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", bc.accessToken))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", blueskeyClient.accessToken))
 
-	resp, err := bc.httpClient.Do(req)
+	resp, err := blueskeyClient.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
+		slog.Error("request failed", "error", err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
+		slog.Error("failed to read response", "error", err)
+		return nil, err
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, body)
+		slog.Error("unexpected status code", "status_code", resp.StatusCode)
+		return nil, err
 	}
 
 	var feedResp feedResponse
 	if err := json.Unmarshal(body, &feedResp); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+		slog.Error("failed to unmarshal response", "error", err)
+		return nil, err
 	}
 
 	var postURIs []string

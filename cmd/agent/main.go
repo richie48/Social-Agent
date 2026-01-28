@@ -8,7 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"social-agent/config"
-	"social-agent/internal/agent"
+	"social-agent/internal/content"
 	"social-agent/internal/scheduler"
 	"social-agent/internal/social/bluesky"
 	"social-agent/internal/social/twitter"
@@ -28,7 +28,7 @@ func main() {
 	// TODO: Take log level input as a service argument, use to set minimum level
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
-	slog.Debug("Configuration loaded. Mode: %s", func() string {
+	slog.Debug("Configuration loaded", "Mode", func() string {
 		if *testMode {
 			return "test"
 		}
@@ -38,9 +38,9 @@ func main() {
 	// Initialize clients
 	twitterClient := twitter.New(loadedConfig.TwitterBearerToken)
 	blueskyClient := bluesky.New(loadedConfig.BlueskyAccessToken, loadedConfig.BlueskyDID)
-	postGenerator, err := agent.New(loadedConfig.GeminiAPIKey, loadedConfig.PostContentTheme)
+	ContentAgent, err := content.New(loadedConfig.GeminiAPIKey)
 	if err != nil {
-		slog.Error("Failed to initialize social agent: %v", err)
+		slog.Error("Failed to initialize social agent", "error", err)
 		os.Exit(1)
 	}
 
@@ -51,7 +51,7 @@ func main() {
 	actionScheduler := scheduler.New(
 		twitterClient,
 		blueskyClient,
-		postGenerator,
+		ContentAgent,
 		loadedConfig,
 	)
 
@@ -76,7 +76,6 @@ func main() {
 
 	// Wait for shutdown signal
 	<-sigChan
-
 	slog.Info("Shutdown signal received. Gracefully stopping...")
 	actionScheduler.Stop()
 }

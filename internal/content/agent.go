@@ -1,4 +1,4 @@
-package agent
+package content
 
 import (
 	"context"
@@ -8,6 +8,8 @@ import (
 	"social-agent/internal/social/twitter"
 	"time"
 )
+
+const ContentTheme = "I work with fools"
 
 // ContentGenerator generates social media posts from Twitter/X posts
 type ContentGenerator interface {
@@ -27,16 +29,16 @@ type GeneratedPost struct {
 }
 
 // New creates a new post generation agent with Gemini as the content generator.
-func New(apiKey string, theme string) (*Agent, error) {
+func New(apiKey string) (*Agent, error) {
 	gen, err := newGemini(apiKey)
 	if err != nil {
 		return nil, err
 	}
 
-	slog.Debug("Initializing agent with theme: %s", theme)
+	slog.Debug("Initializing agent with theme: %s", ContentTheme)
 	return &Agent{
 		contentGen: gen,
-		theme:      theme,
+		theme:      ContentTheme,
 	}, nil
 }
 

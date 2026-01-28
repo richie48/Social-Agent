@@ -1,33 +1,24 @@
 BINARY_NAME=social-agent
 MAIN_PATH=cmd/agent/main.go
-OUTPUT_PATH=./$(BINARY_NAME)
 
 build:
 	@echo "Building $(BINARY_NAME)..."
-	go build -o $(OUTPUT_PATH) $(MAIN_PATH)
-	@echo "Build complete: $(OUTPUT_PATH)"
+	go build -o $(BINARY_NAME) $(MAIN_PATH)
+	@echo "Build complete: $(BINARY_NAME)"
 
 run: build
 	@echo "Starting Social Agent..."
-	./$(OUTPUT_PATH)
-
-run-debug: build
-	@echo "Starting Social Agent (Debug Mode)..."
-	./$(OUTPUT_PATH) -debug
-
-run-dry: build
-	@echo "Starting Social Agent (Dry-Run Mode)..."
-	./$(OUTPUT_PATH) -dry-run
+	./$(BINARY_NAME)
 
 clean:
 	@echo "Cleaning up..."
-	rm -f $(OUTPUT_PATH)
+	rm -f $(BINARY_NAME)
 	go clean
-	@echo "Clean complete"
+	@echo "Clean up complete"
 
-test:
+test: build
 	@echo "Running system tests..."
-	./tests/system_test.sh
+	./tests/system_test.sh ./${BINARY_NAME}
 
 deps:
 	@echo "Downloading dependencies..."
@@ -39,4 +30,4 @@ fmt:
 	go fmt ./...
 	@echo "Formatting complete"
 
-.PHONY: build run run-debug run-dry clean test deps fmt 
+.PHONY: build run clean test deps fmt 
