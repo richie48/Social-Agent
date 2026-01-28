@@ -70,7 +70,7 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	if err := actionScheduler.Start(ctx); err != nil {
-		slog.Error("Failed to start scheduler: %v", err)
+		slog.Error("Failed to start scheduler", "error", err)
 		os.Exit(1)
 	}
 

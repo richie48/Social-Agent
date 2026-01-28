@@ -102,7 +102,7 @@ func (twitterClient *twitterClient) QueryWorkRantTweets(limit int) ([]Post, erro
 	for _, tweet := range parsedResponse.Data {
 		createdAt, err := time.Parse(time.RFC3339, tweet.CreatedAt)
 		if err != nil {
-			slog.Warn("Failed to parse tweet created_at timestamp: ", tweet.CreatedAt, "error: ", err)
+			slog.Warn("Failed to parse tweet created_at timestamp", "timestamp", tweet.CreatedAt, "error", err)
 			continue
 		}
 		post := Post{
