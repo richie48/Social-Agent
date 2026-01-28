@@ -35,7 +35,7 @@ func New(apiKey string) (*Agent, error) {
 		return nil, err
 	}
 
-	slog.Debug("Initializing agent with theme: %s", ContentTheme)
+	slog.Debug("Initializing agent with", "theme", ContentTheme)
 	return &Agent{
 		contentGen: gen,
 		theme:      ContentTheme,

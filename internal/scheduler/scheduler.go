@@ -61,11 +61,11 @@ func (s *Scheduler) Start(ctx context.Context) error {
 		s.followRoutine(context.Background())
 	})
 	if err != nil {
-		slog.Error("failed to schedule follow routine - %v", err)
+		slog.Error("failed to schedule follow routine", "error", err)
 		return err
 	}
 
-	slog.Info("scheduled follow routine at %02d:%02d", followHour, followMin)
+	slog.Info("scheduled follow routine", "hour", followHour, "minute", followMin)
 
 	likeHour := 10 + rand.Intn(9)
 	likeMin := rand.Intn(60)
@@ -75,11 +75,11 @@ func (s *Scheduler) Start(ctx context.Context) error {
 		s.likeRoutine(context.Background())
 	})
 	if err != nil {
-		slog.Error("failed to schedule like routine - %v", err)
+		slog.Error("failed to schedule like routine", "error", err)
 		return err
 	}
 
-	slog.Info("scheduled like routine at %02d:%02d", likeHour, likeMin)
+	slog.Info("scheduled like routine", "hour", likeHour, "minute", likeMin)
 
 	s.cron.Start()
 	slog.Info("scheduler started")
@@ -113,7 +113,7 @@ func (s *Scheduler) postRoutine(ctx context.Context) {
 
 	posts, err := s.contentSource.QueryWorkRantTweets(3)
 	if err != nil {
-		slog.Error("failed to query Twitter/X: %v", err)
+		slog.Error("failed to query Twitter/X", "error", err)
 		return
 	}
 
@@ -136,21 +136,21 @@ func (s *Scheduler) postRoutine(ctx context.Context) {
 	}
 
 	selectedPost := recentPosts[rand.Intn(len(recentPosts))]
-	slog.Debug("selected post: %s", selectedPost.Content)
+	slog.Debug("selected post for generation", "content", selectedPost.Content)
 
 	generatedPost, err := s.postGen.Generate(ctx, selectedPost)
 	if err != nil {
-		slog.Error("failed to generate post: %v", err)
+		slog.Error("failed to generate post", "error", err)
 		return
 	}
 
 	postID, err := s.socialMedia.CreatePost(generatedPost.Content)
 	if err != nil {
-		slog.Error("failed to post to social media: %v", err)
+		slog.Error("failed to post to social media", "error", err)
 		return
 	}
 
-	slog.Info("successfully posted to social media (ID: %s)", postID)
+	slog.Info("successfully posted to social media", "post_id", postID)
 }
 
 func (s *Scheduler) followRoutine(ctx context.Context) {
@@ -166,7 +166,7 @@ func (s *Scheduler) likeRoutine(ctx context.Context) {
 
 	postIDs, err := s.socialMedia.GetRecentPosts(50)
 	if err != nil {
-		slog.Error("failed to fetch recent posts: %v", err)
+		slog.Error("failed to fetch recent posts", "error", err)
 		return
 	}
 
@@ -188,11 +188,11 @@ func (s *Scheduler) likeRoutine(ctx context.Context) {
 
 		err := s.socialMedia.LikePost(postID)
 		if err != nil {
-			slog.Error("failed to like post %s: %v", postID, err)
+			slog.Error("failed to like post", "post_id", postID, "error", err)
 			continue
 		}
 
-		slog.Info("liked post: %s", postID)
+		slog.Info("liked post", "post_id", postID)
 
 		time.Sleep(time.Duration(1+rand.Intn(2)) * time.Second)
 	}
