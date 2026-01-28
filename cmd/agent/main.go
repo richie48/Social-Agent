@@ -76,7 +76,6 @@ func main() {
 
 	// Wait for shutdown signal
 	<-sigChan
-
 	slog.Info("Shutdown signal received. Gracefully stopping...")
 	actionScheduler.Stop()
 }

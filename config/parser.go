@@ -23,6 +23,7 @@ type Config struct {
 // Load reads configuration from environment variables and returns config struct
 func Load() *Config {
 	_ = godotenv.Load()
+	// TODO: Configurable parameters should be parsed here, rather than from environment
 	return &Config{
 		TwitterBearerToken: os.Getenv("TWITTER_BEARER_TOKEN"),
 		BlueskyAccessToken: os.Getenv("BLUESKY_ACCESS_TOKEN"),
