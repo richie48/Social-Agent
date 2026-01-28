@@ -11,19 +11,11 @@ run: build
 	@echo "Starting Social Agent..."
 	./$(OUTPUT_PATH)
 
-run-debug: build
-	@echo "Starting Social Agent (Debug Mode)..."
-	./$(OUTPUT_PATH) -debug
-
-run-dry: build
-	@echo "Starting Social Agent (Dry-Run Mode)..."
-	./$(OUTPUT_PATH) -dry-run
-
 clean:
 	@echo "Cleaning up..."
 	rm -f $(OUTPUT_PATH)
 	go clean
-	@echo "Clean complete"
+	@echo "Clean up complete"
 
 test:
 	@echo "Running system tests..."
@@ -39,4 +31,4 @@ fmt:
 	go fmt ./...
 	@echo "Formatting complete"
 
-.PHONY: build run run-debug run-dry clean test deps fmt 
+.PHONY: build run clean test deps fmt 

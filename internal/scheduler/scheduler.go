@@ -17,7 +17,7 @@ import (
 type Scheduler struct {
 	cron          *cron.Cron
 	contentSource twitter.ContentSource
-	socialMedia   bluesky.SocialMediaClient
+	socialMedia   bluesky.ContentDestination
 	postGen       *agent.Agent
 	config        *config.Config
 }
@@ -25,7 +25,7 @@ type Scheduler struct {
 // New creates a new scheduler.
 func New(
 	contentSource twitter.ContentSource,
-	socialMedia bluesky.SocialMediaClient,
+	socialMedia bluesky.ContentDestination,
 	postGen *agent.Agent,
 	config *config.Config,
 ) *Scheduler {

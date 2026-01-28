@@ -10,16 +10,16 @@ import (
 	"time"
 )
 
-const TWitterSearchUrl = "https://api.twitter.com/2/tweets/search/recent"
+const TwitterSearchURL = "https://api.twitter.com/2/tweets/search/recent"
+const TwitterClientTimeout = 30 * time.Second
 
 // Post represents a post from a content source
 type Post struct {
 	Content   string
 	Source    string
-	CreatedAt time.Time
 }
 
-// ContentSource defines the interface for getting content
+// ContentSource defines the interface for getting content from a source
 type ContentSource interface {
 	QueryWorkRantTweets(limit int) ([]Post, error)
 }
@@ -37,17 +37,19 @@ type tweetResponse struct {
 }
 
 type twitterClient struct {
-	bearerToken string
-	httpClient  *http.Client
+	bearerToken  string
+	searchURL    string
+	httpClient   *http.Client
 }
 
 // New creates a new Twitter API client.
 func New(bearerToken string) *twitterClient {
-	slog.Debug("Initializing Twitter API client")
+	slog.Info("Initializing Twitter API client with", "timeout", TwitterClientTimeout)
 	return &twitterClient{
 		bearerToken: bearerToken,
+		searchURL:   TwitterSearchURL,
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: TwitterClientTimeout,
 		},
 	}
 }
@@ -61,41 +63,43 @@ func (twitterClient *twitterClient) QueryWorkRantTweets(limit int) ([]Post, erro
 	params.Add("query", query)
 	params.Add("max_results", strconv.Itoa(limit))
 	params.Add("tweet.fields", "created_at")
-	url := TWitterSearchUrl + params.Encode()
+	url := twitterClient.searchURL + "?" + params.Encode()
 
 	// Send request
-	req, err := http.NewRequest("GET", url, nil)
+	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		slog.error("Failed to create request to Twitter API: %v", err)
+		slog.Error("Failed to create request to Twitter API","error", err)
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+twitterClient.bearerToken)
-	resp, err := twitterClient.httpClient.Do(req)
+	request.Header.Set("Authorization", "Bearer "+twitterClient.bearerToken)
+	slog.Debug("Sending request to Twitter API", "method", "GET", "url", url)
+	response, err := twitterClient.httpClient.Do(request)
 	if err != nil {
-		slog.error("Request to Twitter API failed: %v", err)
+		slog.Error("Request to Twitter API failed", "error", err)
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer request.Body.Close()
 
 	// Verify and parse response
-	if resp.StatusCode != http.StatusOK {
-		slog.error("Twitter API returned unexpected status code: %d", resp.StatusCode)
+	if response.StatusCode != http.StatusOK {
+		slog.Error("Twitter API returned unexpected status code", "status_code", response.StatusCode)
 		return nil, err
 	}
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		slog.error("Failed to read response body from Twitter API: %v", err)
+		slog.Error("Failed to read response body from Twitter API", "error", err)
 		return nil, err
 	}
-	var tweetResp tweetResponse
-	if err := json.Unmarshal(body, &tweetResp); err != nil {
-		slog.error("Failed to decode Twitter API response: %v", err)
+	slog.Debug("Received response from Twitter API", "status_code", response.StatusCode, "body_size", len(body))
+	var parsedResponse tweetResponse
+	if err := json.Unmarshal(body, &parsedResponse); err != nil {
+		slog.Error("Failed to decode Twitter API response: %v", err)
 		return nil, err
 	}
 
 	// Store posts
 	var posts []Post
-	for _, tweet := range tweetResp.Data {
+	for _, tweet := range parsedResponse.Data {
 		createdAt, err := time.Parse(time.RFC3339, tweet.CreatedAt)
 		if err != nil {
 			slog.Warn("Failed to parse tweet created_at timestamp: ", tweet.CreatedAt, "error: ", err)

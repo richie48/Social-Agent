@@ -5,7 +5,7 @@ set -eu
 echo "Running Social Agent System Test!"
 
 # Check if Go is installed
-if ! command -v go &1> /dev/null; then
+if ! command -v go &> /dev/null; then
     echo "Error: Go is not installed"
     exit 1
 fi
@@ -22,8 +22,8 @@ if [ ! -f "${BINARY}" ]; then
 fi
 
 # TODO: Improve this tests 
-echo "Testing dry-run mode..."
-exec "${BINARY}" -dry-run 2>&1 | grep -q "not configured" || true
+echo "Testing test mode..."
+exec "${BINARY}" -test-mode 2>&1 | grep -q "not configured" || true
 
 echo "Cleaning up executable..."
 rm -f "${BINARY}"
