@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"math/rand"
 	"social-agent/config"
-	"social-agent/internal/agent"
+	"social-agent/internal/content"
 	"social-agent/internal/social/bluesky"
 	"social-agent/internal/social/twitter"
 	"time"
@@ -18,7 +18,7 @@ type Scheduler struct {
 	cron          *cron.Cron
 	contentSource twitter.ContentSource
 	socialMedia   bluesky.ContentDestination
-	postGen       *agent.Agent
+	postGen       *content.Agent
 	config        *config.Config
 }
 
@@ -26,7 +26,7 @@ type Scheduler struct {
 func New(
 	contentSource twitter.ContentSource,
 	socialMedia bluesky.ContentDestination,
-	postGen *agent.Agent,
+	postGen *content.Agent,
 	config *config.Config,
 ) *Scheduler {
 	return &Scheduler{
@@ -47,11 +47,11 @@ func (s *Scheduler) Start(ctx context.Context) error {
 		s.postRoutine(context.Background())
 	})
 	if err != nil {
-		slog.Error("failed to schedule post at %d:%d - %v", s.config.PostingScheduleHour, minute, err)
+		slog.Error("failed to schedule post at", "hour", s.config.PostingScheduleHour, "minute", minute, "error", err)
 		return err
 	}
 
-	slog.Info("scheduled post creation at %02d:%02d", s.config.PostingScheduleHour, minute)
+	slog.Info("scheduled post creation at", "hour", s.config.PostingScheduleHour, "minute", minute)
 
 	followHour := 9 + rand.Intn(10)
 	followMin := rand.Intn(60)

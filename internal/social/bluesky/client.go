@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog" 
+	"log/slog"
 	"net/http"
 	"time"
 )
@@ -78,7 +78,7 @@ func (blueskeyClient *blueskyClient) CreatePost(text string) (string, error) {
 		CreatedAt: time.Now().UTC(),
 	}
 
-	payload := createPostRequest{ 
+	payload := createPostRequest{
 		Repo:       blueskeyClient.did,
 		Collection: "app.bsky.feed.post",
 		Record: map[string]interface{}(map[string]interface{}{
@@ -103,7 +103,6 @@ func (blueskeyClient *blueskyClient) CreatePost(text string) (string, error) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", blueskeyClient.accessToken))
 
-	slog.Debug("Sending CreatePost request to Bluesky API", "method", "POST", "url", url, "payload_size", len(payloadBytes))
 	resp, err := blueskeyClient.httpClient.Do(req)
 	if err != nil {
 		slog.Error("request failed", "error", err)
@@ -117,7 +116,6 @@ func (blueskeyClient *blueskyClient) CreatePost(text string) (string, error) {
 		return "", err
 	}
 
-	slog.Debug("Received response from Bluesky API", "status_code", resp.StatusCode, "body_size", len(body))
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		slog.Error("unexpected status code", "status_code", resp.StatusCode, "body", string(body))
 		return "", err
@@ -148,7 +146,6 @@ func (blueskeyClient *blueskyClient) FollowUser(userHandle string) error {
 	req.URL.RawQuery = q.Encode()
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", blueskeyClient.accessToken))
 
-	slog.Debug("Sending ResolveHandle request to Bluesky API", "method", "GET", "url", req.URL.String())
 	resp, err := blueskeyClient.httpClient.Do(req)
 	if err != nil {
 		slog.Error("failed to resolve handle", "error", err)
@@ -162,7 +159,6 @@ func (blueskeyClient *blueskyClient) FollowUser(userHandle string) error {
 		return err
 	}
 
-	slog.Debug("Received response from ResolveHandle request", "status_code", resp.StatusCode, "body_size", len(body))
 	if resp.StatusCode != http.StatusOK {
 		slog.Error("failed to resolve handle", "user_handle", userHandle, "body", string(body))
 		return err
@@ -206,7 +202,6 @@ func (blueskeyClient *blueskyClient) FollowUser(userHandle string) error {
 	followReq.Header.Set("Content-Type", "application/json")
 	followReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", blueskeyClient.accessToken))
 
-	slog.Debug("Sending FollowUser request to Bluesky API", "method", "POST", "url", createFollowURL, "payload_size", len(followBytes))
 	followResp, err := blueskeyClient.httpClient.Do(followReq)
 	if err != nil {
 		slog.Error("follow request failed", "error", err)
@@ -220,7 +215,6 @@ func (blueskeyClient *blueskyClient) FollowUser(userHandle string) error {
 		return err
 	}
 
-	slog.Debug("Received response from FollowUser request", "status_code", followResp.StatusCode, "body_size", len(followBody))
 	if followResp.StatusCode != http.StatusOK && followResp.StatusCode != http.StatusCreated {
 		slog.Error("unexpected status code", "status_code", followResp.StatusCode, "body", string(followBody))
 		return err
@@ -263,7 +257,6 @@ func (blueskeyClient *blueskyClient) LikePost(postURI string) error {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", blueskeyClient.accessToken))
 
-	slog.Debug("Sending LikePost request to Bluesky API", "method", "POST", "url", url, "payload_size", len(payloadBytes))
 	resp, err := blueskeyClient.httpClient.Do(req)
 	if err != nil {
 		slog.Error("like request failed", "error", err)
@@ -271,15 +264,13 @@ func (blueskeyClient *blueskyClient) LikePost(postURI string) error {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		slog.Error("unexpected status code", "status_code", resp.StatusCode, "body", string(body))
+		return err
+	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		slog.Error("failed to read like response", "error", err)
-		return err
-	}
-
-	slog.Debug("Received response from LikePost request", "status_code", resp.StatusCode, "body_size", len(body))
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		slog.Error("unexpected status code", "status_code", resp.StatusCode, "body", string(body))
 		return err
 	}
 
@@ -301,7 +292,6 @@ func (blueskeyClient *blueskyClient) GetRecentPosts(limit int) ([]string, error)
 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", blueskeyClient.accessToken))
 
-	slog.Debug("Sending GetRecentPosts request to Bluesky API", "method", "GET", "url", req.URL.String())
 	resp, err := blueskeyClient.httpClient.Do(req)
 	if err != nil {
 		slog.Error("request failed", "error", err)
@@ -315,9 +305,8 @@ func (blueskeyClient *blueskyClient) GetRecentPosts(limit int) ([]string, error)
 		return nil, err
 	}
 
-	slog.Debug("Received response from GetRecentPosts request", "status_code", resp.StatusCode, "body_size", len(body))
 	if resp.StatusCode != http.StatusOK {
-		slog.Error("unexpected status code", "status_code", resp.StatusCode, "body", string(body))
+		slog.Error("unexpected status code", "status_code", resp.StatusCode)
 		return nil, err
 	}
 
