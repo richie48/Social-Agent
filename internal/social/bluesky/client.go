@@ -265,15 +265,9 @@ func (blueskeyClient *blueskyClient) LikePost(postURI string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		slog.Error("unexpected status code", "status_code", resp.StatusCode, "body", string(body))
+		slog.Error("unexpected status code", "status_code", resp.StatusCode)
 		return err
 	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		slog.Error("failed to read like response", "error", err)
-		return err
-	}
-
 	return nil
 }
 

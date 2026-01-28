@@ -45,7 +45,7 @@ type twitterClient struct {
 
 // New creates a new Twitter API client.
 func New(bearerToken string) *twitterClient {
-	slog.debug("Initializing Twitter API client with", "timeout", TwitterClientTimeout)
+	slog.Debug("Initializing Twitter API client with", "timeout", TwitterClientTimeout)
 	return &twitterClient{
 		bearerToken: bearerToken,
 		searchURL:   TwitterSearchURL,
@@ -95,7 +95,7 @@ func (twitterClient *twitterClient) QueryWorkRantTweets(limit int) ([]Post, erro
 		slog.Error("Failed to decode Twitter API response", "error", err)
 		return nil, err
 	}
-	slog.Info("Successfully retrieved tweets from Twitter API", "query", query, "response", parsedResponse)
+	slog.Info("Successfully retrieved tweets from Twitter API", "query", url, "response", parsedResponse)
 
 	// Store posts
 	var posts []Post

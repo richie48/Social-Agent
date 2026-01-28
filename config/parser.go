@@ -18,7 +18,6 @@ type Config struct {
 	FollowUsersPerDay   int
 	LikePostsPerDay     int
 	MaxContentAgeDays   int
-	PostContentTheme    string
 }
 
 // Load reads configuration from environment variables and returns config struct
@@ -34,7 +33,6 @@ func Load() *Config {
 		FollowUsersPerDay:   getEnvInt("FOLLOW_USERS_PER_DAY", 0),
 		LikePostsPerDay:     getEnvInt("LIKE_POSTS_PER_DAY", 0),
 		MaxContentAgeDays:   getEnvInt("MAX_CONTENT_AGE_DAYS", 0),
-		PostContentTheme:    os.Getenv("POST_CONTENT_THEME"),
 	}
 }
 

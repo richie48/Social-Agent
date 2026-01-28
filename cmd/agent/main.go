@@ -38,7 +38,7 @@ func main() {
 	// Initialize clients
 	twitterClient := twitter.New(loadedConfig.TwitterBearerToken)
 	blueskyClient := bluesky.New(loadedConfig.BlueskyAccessToken, loadedConfig.BlueskyDID)
-	ContentGenerator, err := content.New(loadedConfig.GeminiAPIKey, loadedConfig.PostContentTheme)
+	ContentAgent, err := content.New(loadedConfig.GeminiAPIKey)
 	if err != nil {
 		slog.Error("Failed to initialize social agent", "error", err)
 		os.Exit(1)
@@ -51,7 +51,7 @@ func main() {
 	actionScheduler := scheduler.New(
 		twitterClient,
 		blueskyClient,
-		ContentGenerator,
+		ContentAgent,
 		loadedConfig,
 	)
 
