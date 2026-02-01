@@ -154,46 +154,24 @@ func (s *Scheduler) postRoutine(ctx context.Context) {
 }
 
 func (s *Scheduler) followRoutine(ctx context.Context) {
-	slog.Info("starting follow routine")
-
-	// Follow routine disabled: post author information is not collected
-	slog.Info("follow routine skipped (author tracking disabled)")
+	// TODO: This should be implmeented
 	return
 }
 
 func (s *Scheduler) likeRoutine(ctx context.Context) {
 	slog.Info("starting like routine")
 
-	postIDs, err := s.socialMedia.GetRecentPosts(50)
-	if err != nil {
-		slog.Error("failed to fetch recent posts", "error", err)
-		return
-	}
-
-	if len(postIDs) == 0 {
-		slog.Error("no posts found on timeline")
-		return
-	}
-
 	likeCount := s.config.LikePostsPerDay
-	if likeCount > len(postIDs) {
-		likeCount = len(postIDs)
+	if likeCount <= 0 {
+		slog.Info("like routine skipped (LikePostsPerDay is 0)")
+		return
 	}
 
-	for i := 0; i < likeCount; i++ {
-		idx := rand.Intn(len(postIDs))
-		postID := postIDs[idx]
-
-		postIDs = append(postIDs[:idx], postIDs[idx+1:]...)
-
-		err := s.socialMedia.LikePost(postID)
-		if err != nil {
-			slog.Error("failed to like post", "post_id", postID, "error", err)
-			continue
-		}
-
-		slog.Info("liked post", "post_id", postID)
-
-		time.Sleep(time.Duration(1+rand.Intn(2)) * time.Second)
+	err := s.socialMedia.LikeRecentPosts(likeCount)
+	if err != nil {
+		slog.Error("failed to like recent posts", "error", err)
+		return
 	}
+
+	slog.Info("like routine completed", "count", likeCount)
 }

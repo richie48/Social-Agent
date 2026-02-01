@@ -25,18 +25,6 @@ type ContentSource interface {
 	QueryWorkRantTweets(limit int) ([]Post, error)
 }
 
-type tweetResponse struct {
-	Data []struct {
-		Text      string `json:"text"`
-		CreatedAt string `json:"created_at"`
-	} `json:"data"`
-	Meta struct {
-		ResultCount int    `json:"result_count"`
-		NewestID    string `json:"newest_id"`
-		OldestID    string `json:"oldest_id"`
-	} `json:"meta"`
-}
-
 type twitterClient struct {
 	bearerToken string
 	searchURL   string
@@ -78,7 +66,7 @@ func (twitterClient *twitterClient) QueryWorkRantTweets(limit int) ([]Post, erro
 		slog.Error("Request to Twitter API failed for ", "query", url, "error", err)
 		return nil, err
 	}
-	defer request.Body.Close()
+	defer response.Body.Close()
 
 	// Verify and parse response
 	if response.StatusCode != http.StatusOK {
@@ -90,7 +78,12 @@ func (twitterClient *twitterClient) QueryWorkRantTweets(limit int) ([]Post, erro
 		slog.Error("Failed to read response body from Twitter API", "error", err)
 		return nil, err
 	}
-	var parsedResponse tweetResponse
+	var parsedResponse struct {
+		Data []struct {
+			Text      string `json:"text"`
+			CreatedAt string `json:"created_at"`
+		} `json:"data"`
+	}
 	if err := json.Unmarshal(body, &parsedResponse); err != nil {
 		slog.Error("Failed to decode Twitter API response", "error", err)
 		return nil, err
