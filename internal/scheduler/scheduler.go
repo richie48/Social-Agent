@@ -154,10 +154,7 @@ func (s *Scheduler) postRoutine(ctx context.Context) {
 }
 
 func (s *Scheduler) followRoutine(ctx context.Context) {
-	slog.Info("starting follow routine")
-
-	// Follow routine disabled: post author information is not collected
-	slog.Info("follow routine skipped (author tracking disabled)")
+	// TODO: This should be implmeented
 	return
 }
 
