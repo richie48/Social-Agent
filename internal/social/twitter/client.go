@@ -66,7 +66,7 @@ func (twitterClient *twitterClient) QueryWorkRantTweets(limit int) ([]Post, erro
 		slog.Error("Request to Twitter API failed for ", "query", url, "error", err)
 		return nil, err
 	}
-	defer request.Body.Close()
+	defer response.Body.Close()
 
 	// Verify and parse response
 	if response.StatusCode != http.StatusOK {

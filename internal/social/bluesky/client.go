@@ -36,13 +36,13 @@ type blueskyClient struct {
 
 // New creates a new Bluesky API client
 func New(accessToken string, did string) *blueskyClient {
-	slog.Debug("Initializing Bluesky API client with", "timeout", TwitterClientTimeout)
+	slog.Debug("Initializing Bluesky API client with", "timeout", BskyClientTimeout)
 	return &blueskyClient{
 		baseURL:     BlueskyBaseURL,
 		accessToken: accessToken,
 		did:         did,
 		httpClient: &http.Client{
-			BskyClientTimeout,
+			Timeout: BskyClientTimeout,
 		},
 	}
 }
@@ -109,7 +109,7 @@ func (bskyClient *blueskyClient) FollowUser(userHandle string) error {
 	// Build handle resolution to DID
 	params := url.Values{}
 	params.Add("handle", userHandle)
-	resolveURL := bskyClient.baseURL + "/xrpc.com.atproto.identity.resolveHandle?" + params.Encode()
+	resolveURL := bskyClient.baseURL + "/xrpc/com.atproto.identity.resolveHandle?" + params.Encode()
 
 	// Send resolve request
 	request, err := http.NewRequest("GET", resolveURL, nil)
@@ -144,7 +144,7 @@ func (bskyClient *blueskyClient) FollowUser(userHandle string) error {
 	}
 
 	// Create follow request
-	createFollowURL := bskyClient.baseURL + "/xrpc.com.atproto.repo.createRecord"
+	createFollowURL := bskyClient.baseURL + "/xrpc/com.atproto.repo.createRecord"
 	followPayload := recordRequest{
 		Repo:       bskyClient.did,
 		Collection: "app.bsky.graph.follow",
@@ -170,7 +170,7 @@ func (bskyClient *blueskyClient) FollowUser(userHandle string) error {
 	followRequest.Header.Set("Authorization", "Bearer "+bskyClient.accessToken)
 	followResponse, err := bskyClient.httpClient.Do(followRequest)
 	if err != nil {
-		slog.Error("Request to follow handle failled", "request", request, "error", err)
+		slog.Error("Request to follow handle failed", "request", followRequest, "error", err)
 		return err
 	}
 	defer followResponse.Body.Close()
@@ -189,7 +189,7 @@ func (bskyClient *blueskyClient) LikeRecentPosts(limit int) error {
 	// Build query to fetch timeline posts
 	params := url.Values{}
 	params.Add("limit", strconv.Itoa(limit))
-	timelineURL := blueskeyClient.baseURL + "/xrpc/app.bsky.feed.getTimeline?" + params.Encode()
+	timelineURL := bskyClient.baseURL + "/xrpc/app.bsky.feed.getTimeline?" + params.Encode()
 
 	// Send fetch timeline request
 	request, err := http.NewRequest("GET", timelineURL, nil)
@@ -197,7 +197,7 @@ func (bskyClient *blueskyClient) LikeRecentPosts(limit int) error {
 		slog.Error("Failed to create timeline request", "error", err)
 		return err
 	}
-	request.Header.Set("Authorization", "Bearer "+blueskeyClient.accessToken)
+	request.Header.Set("Authorization", "Bearer "+bskyClient.accessToken)
 	response, err := bskyClient.httpClient.Do(request)
 	if err != nil {
 		slog.Error("Failed to fetch recent posts", "query", timelineURL, "error", err)
