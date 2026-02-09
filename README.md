@@ -1,6 +1,6 @@
 # Social Agent
 <!-- TODO: Work on the entire readme when picture is clearer. For now keeping simple -->
-Autonomous agent that generates and posts content on social media, sourced from Twitter/X work rants and enhanced with AI.
+Autonomous agent that generates and posts content on social media, sourced from Twitter/X work rants and enhanced with AI. Runs AI workflow on cloud to reduce resource usage by agent
 
 ## Prerequisites
 
@@ -27,3 +27,6 @@ go build -o social-agent ./cmd/agent/main.go
 # Run system test
 ./tests/system_test.sh /path/to/binary
 ```
+
+## Future work
+Expand agent usage beyond text only
