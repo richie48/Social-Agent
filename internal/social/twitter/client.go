@@ -10,8 +10,10 @@ import (
 	"time"
 )
 
-const TwitterSearchURL = "https://api.twitter.com/2/tweets/search/recent"
-const TwitterClientTimeout = 30 * time.Second
+const (
+	twitterSearchURL     = "https://api.twitter.com/2/tweets/search/recent"
+	twitterClientTimeout = 30 * time.Second
+)
 
 // Post represents a post from a content source
 type Post struct {
@@ -33,12 +35,12 @@ type twitterClient struct {
 
 // New creates a new Twitter API client.
 func New(bearerToken string) *twitterClient {
-	slog.Debug("Initializing Twitter API client with", "timeout", TwitterClientTimeout)
+	slog.Debug("Initializing Twitter API client with", "timeout", twitterClientTimeout)
 	return &twitterClient{
 		bearerToken: bearerToken,
-		searchURL:   TwitterSearchURL,
+		searchURL:   twitterSearchURL,
 		httpClient: &http.Client{
-			Timeout: TwitterClientTimeout,
+			Timeout: twitterClientTimeout,
 		},
 	}
 }

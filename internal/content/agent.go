@@ -9,17 +9,33 @@ import (
 	"time"
 )
 
-const ContentTheme = "I work with fools"
+const Prompt = `You are a humorous social media content creator specializing in workplace 
+frustration content. Your task is to create an engaging social media post based on a 
+Twitter/X work rant that embodies the theme: I work with fools
 
-// ContentGenerator generates social media posts from Twitter/X posts
+Requirements:
+1. Transform the Twitter/X rant into a relatable, humorous social media post about workplace 
+   frustrations
+2. The post should be between 50-200 characters
+3. Use conversational, natural language appropriate for social media
+4. Incorporate subtle humor and frustration about office dynamics, coworkers, or work 
+   situations
+5. Make it engaging and likely to resonate with people frustrated at work
+6. Do not include hashtags unless they naturally fit
+7. Keep it authentic and relatable, not preachy
+8. Optionally include a mild question or observation that invites engagement
+
+Generate ONLY the post content, nothing else. provided posts for content ideas:
+`
+
+// ContentGenerator generates social media posts from provided posts
 type ContentGenerator interface {
-	GeneratePost(ctx context.Context, post *twitter.Post, theme string) (string, error)
+	GeneratePost(ctx context.Context, post *twitter.Post) (string, error)
 }
 
 // Agent generates posts from Twitter/X and posts to social media.
 type Agent struct {
 	contentGen ContentGenerator
-	theme      string
 }
 
 // GeneratedPost is a post ready to be posted to social media.
@@ -30,31 +46,20 @@ type GeneratedPost struct {
 
 // New creates a new post generation agent with Gemini as the content generator.
 func New(apiKey string) (*Agent, error) {
-	gen, err := newGemini(apiKey)
-	if err != nil {
-		return nil, err
-	}
-
-	slog.Debug("Initializing agent with", "theme", ContentTheme)
-	return &Agent{
-		contentGen: gen,
-		theme:      ContentTheme,
-	}, nil
-}
-
-// NewGemini creates a new Gemini-based generator.
-func newGemini(apiKey string) (*GeminiGenerator, error) {
 	ctx := context.Background()
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
 		APIKey: apiKey,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
+		slog.Error("failed to create Gemini client", "error", err)
+		return nil, err
+
 	}
 
-	slog.Info("Initializing gemini content generator")
-	return &GeminiGenerator{
-		client: client,
+	return &Agent{
+		contentGen: GeminiGenerator{
+			client: client,
+		},
 	}, nil
 }
 
@@ -64,7 +69,7 @@ func (a *Agent) Generate(ctx context.Context, post *twitter.Post) (*GeneratedPos
 		return nil, fmt.Errorf("post is nil")
 	}
 
-	socialContent, err := a.contentGen.GeneratePost(ctx, post, a.theme)
+	socialContent, err := a.contentGen.GeneratePost(ctx, post)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate post content: %w", err)
 	}
@@ -97,33 +102,17 @@ type GeminiGenerator struct {
 }
 
 // GeneratePost creates a social media post from a Twitter/X post using Gemini.
-func (gg *GeminiGenerator) GeneratePost(ctx context.Context, post *twitter.Post, theme string) (string, error) {
+func (gg *GeminiGenerator) GeneratePost(ctx context.Context, post *twitter.Post) (string, error) {
 	if post == nil {
 		return "", fmt.Errorf("post is nil")
 	}
 
-	prompt := fmt.Sprintf(`You are a humorous social media content creator specializing in workplace frustration content. 
-Your task is to create an engaging social media post based on a Twitter/X work rant that embodies the theme: "%s"
-
-Twitter/X Post:
-%s
-
-Requirements:
-1. Transform the Twitter/X rant into a relatable, humorous social media post about workplace frustrations
-2. The post should be between 100-300 characters
-3. Use conversational, natural language appropriate for social media
-4. Incorporate subtle humor and frustration about office dynamics, coworkers, or work situations
-5. Make it engaging and likely to resonate with people frustrated at work
-6. Do NOT include hashtags unless they naturally fit
-7. Keep it authentic and relatable, not preachy
-8. Optionally include a mild question or observation that invites engagement
-
-Generate ONLY the post content, nothing else.`, theme, post.Content)
+	completePrompt := fmt.Sprintf(Prompt + post.Content)
 
 	resp, err := gg.client.Models.GenerateContent(ctx, "gemini-2.5-flash", []*genai.Content{
 		{
 			Parts: []*genai.Part{
-				{Text: prompt},
+				{Text: completePrompt},
 			},
 		},
 	}, nil)

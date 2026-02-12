@@ -11,8 +11,10 @@ import (
 	"time"
 )
 
-const BlueskyBaseURL = "https://bsky.social"
-const BskyClientTimeout = 30 * time.Second
+const (
+	blueskyBaseURL    = "https://bsky.social"
+	bskyClientTimeout = 30 * time.Second
+)
 
 // ContentDestination defines the interface for content destinations
 type ContentDestination interface {
@@ -36,13 +38,13 @@ type blueskyClient struct {
 
 // New creates a new Bluesky API client
 func New(accessToken string, did string) *blueskyClient {
-	slog.Debug("Initializing Bluesky API client with", "timeout", BskyClientTimeout)
+	slog.Debug("Initializing Bluesky API client with", "timeout", bskyClientTimeout)
 	return &blueskyClient{
-		baseURL:     BlueskyBaseURL,
+		baseURL:     blueskyBaseURL,
 		accessToken: accessToken,
 		did:         did,
 		httpClient: &http.Client{
-			Timeout: BskyClientTimeout,
+			Timeout: bskyClientTimeout,
 		},
 	}
 }
