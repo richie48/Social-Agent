@@ -22,15 +22,15 @@ type Post struct {
 	CreatedAt time.Time
 }
 
-// ContentSource defines the interface for getting content from a source
-type ContentSource interface {
-	QueryWorkRantTweets(limit int) ([]Post, error)
-}
-
 type twitterClient struct {
 	bearerToken string
 	searchURL   string
 	httpClient  *http.Client
+}
+
+// ContentSource defines the interface for getting content from a source
+type ContentSource interface {
+	QueryWorkRantTweets(limit int) ([]Post, error)
 }
 
 // New creates a new Twitter API client.

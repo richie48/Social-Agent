@@ -2,142 +2,107 @@ package content
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"google.golang.org/genai"
 	"log/slog"
-	"social-agent/internal/social/twitter"
-	"time"
+	"social-GeminiGenerator/internal/social/twitter"
 )
 
-const Prompt = `You are a humorous social media content creator specializing in workplace 
-frustration content. Your task is to create an engaging social media post based on a 
-Twitter/X work rant that embodies the theme: I work with fools
+type geminiAgent struct {
+	client *genai.Client
+}
 
-Requirements:
-1. Transform the Twitter/X rant into a relatable, humorous social media post about workplace 
-   frustrations
-2. The post should be between 50-200 characters
-3. Use conversational, natural language appropriate for social media
-4. Incorporate subtle humor and frustration about office dynamics, coworkers, or work 
-   situations
-5. Make it engaging and likely to resonate with people frustrated at work
-6. Do not include hashtags unless they naturally fit
-7. Keep it authentic and relatable, not preachy
-8. Optionally include a mild question or observation that invites engagement
-
-Generate ONLY the post content, nothing else. provided posts for content ideas:
-`
-
-// ContentGenerator generates social media posts from provided posts
+// ContentGenerator generates social media posts from posts
 type ContentGenerator interface {
 	GeneratePost(ctx context.Context, post *twitter.Post) (string, error)
 }
 
-// Agent generates posts from Twitter/X and posts to social media.
-type Agent struct {
-	contentGen ContentGenerator
-}
-
-// GeneratedPost is a post ready to be posted to social media.
-type GeneratedPost struct {
-	Content   string
-	CreatedAt time.Time
-}
-
-// New creates a new post generation agent with Gemini as the content generator.
-func New(apiKey string) (*Agent, error) {
+// New creates a new Gemini agent for content generation
+func New(apiKey string) (*geminiAgent, error) {
 	ctx := context.Background()
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
 		APIKey: apiKey,
 	})
 	if err != nil {
-		slog.Error("failed to create Gemini client", "error", err)
+		slog.Error("Failed to create Gemini client", "error", err)
 		return nil, err
-
 	}
 
-	return &Agent{
-		contentGen: GeminiGenerator{
-			client: client,
-		},
+	return &geminiAgent{
+		client: client,
 	}, nil
 }
 
-// Generate creates a social media post from a Twitter/X post.
-func (a *Agent) Generate(ctx context.Context, post *twitter.Post) (*GeneratedPost, error) {
-	if post == nil {
-		return nil, fmt.Errorf("post is nil")
-	}
-
-	socialContent, err := a.contentGen.GeneratePost(ctx, post)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate post content: %w", err)
-	}
-
-	return &GeneratedPost{
-		Content:   socialContent,
-		CreatedAt: time.Now(),
-	}, nil
-}
-
-// TruncateForSocialMedia ensures the post fits within social media character limits (300 chars).
-func TruncateForSocialMedia(content string, maxChars int) string {
-	if len(content) <= maxChars {
+// truncateContent ensures the post fits within social media character limits
+// it truncates the content to the nearest word boundary
+func truncateContent(content string, maxCharacters int) string {
+	if len(content) <= maxCharacters {
 		return content
 	}
 
-	truncated := content[:maxChars]
-	for i := len(truncated) - 1; i >= 0; i-- {
-		if truncated[i] == ' ' {
-			return truncated[:i] + "..."
+	truncatedContent := content[:maxCharacters]
+	for i := len(truncatedContent) - 1; i >= 0; i-- {
+		if truncatedContent[i] == ' ' {
+			return truncatedContent[:i] + "..."
 		}
 	}
-
-	return truncated + "..."
+	return truncatedContent + "..."
 }
 
-// GeminiGenerator uses Google's Gemini to generate posts.
-type GeminiGenerator struct {
-	client *genai.Client
-}
-
-// GeneratePost creates a social media post from a Twitter/X post using Gemini.
-func (gg *GeminiGenerator) GeneratePost(ctx context.Context, post *twitter.Post) (string, error) {
-	if post == nil {
-		return "", fmt.Errorf("post is nil")
+// GeneratePost creates a social media post from social media posts using gemini. It takes the
+// content of the post and generates a humorous, relatable post about workplace frustrations
+func (geminiAgent *geminiAgent) GeneratePost(ctx context.Context, posts []twitter.Post) (string, error) {
+	if len(posts) == 0 {
+		errorMessage := "No posts provided for content generation"
+		slog.Error(errorMessage)
+		return "", errors.New(errorMessage)
 	}
 
-	completePrompt := fmt.Sprintf(Prompt + post.Content)
+	const prompt = `You are a humorous social media content creator specializing in workplace 
+	frustration content. Your task is to create an engaging social media post based on a 
+	Twitter/X work rant that embodies the theme: I work with fools
 
-	resp, err := gg.client.Models.GenerateContent(ctx, "gemini-2.5-flash", []*genai.Content{
-		{
-			Parts: []*genai.Part{
-				{Text: completePrompt},
-			},
-		},
-	}, nil)
+	Requirements:
+	1. Transform the Twitter/X rant into a relatable, humorous social media post about workplace 
+	frustrations
+	2. The post should be between 50-200 characters
+	3. Use conversational, natural language appropriate for social media
+	4. Incorporate subtle humor and frustration about office dynamics, coworkers, or work 
+	situations
+	5. Make it engaging and likely to resonate with people frustrated at work
+	6. Do not include hashtags unless they naturally fit
+	7. Keep it authentic and relatable, not preachy
+	8. Optionally include a mild question or observation that invites engagement
+
+	Generate ONLY the post content, nothing else. provided posts for content ideas: %v
+	`
+
+	response, err := client.Models.GenerateContent(
+		ctx,
+		"gemini-2.5-flash",
+		fmt.Sprintf(prompt, posts),
+		nil,
+	)
 	if err != nil {
-		return "", fmt.Errorf("failed to call Gemini API: %w", err)
+		slog.Error("Failed to generate content with Gemini", "error", err)
+		return "", err
 	}
 
-	if len(resp.Candidates) == 0 {
-		return "", fmt.Errorf("empty response from Gemini")
+	if len(response.Candidates) == 0 {
+		errorMessage := "Gemini response contains no candidates"
+		slog.Error(errorMessage)
+		return "", errors.New(errorMessage)
 	}
 
-	var generatedPost string
-	if len(resp.Candidates[0].Content.Parts) > 0 {
-		if resp.Candidates[0].Content.Parts[0].Text != "" {
-			generatedPost = resp.Candidates[0].Content.Parts[0].Text
-		}
-	}
-
+	generatedPost = response.Candidates[0].Content.Parts[0].Text
 	if generatedPost == "" {
-		return "", fmt.Errorf("no text content in Gemini response")
+		errorMessage := "No text content in Gemini response"
+		slog.Error(errorMessage)
+		return "", errors.New(errorMessage)
 	}
 
-	if len(generatedPost) > 500 {
-		generatedPost = TruncateForSocialMedia(generatedPost, 300)
-	}
-
+	const contentLengthLimit = 300
+	generatedPost = truncateContent(generatedPost, contentLengthLimit)
 	return generatedPost, nil
 }

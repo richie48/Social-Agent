@@ -16,13 +16,6 @@ const (
 	bskyClientTimeout = 30 * time.Second
 )
 
-// ContentDestination defines the interface for content destinations
-type ContentDestination interface {
-	CreatePost(text string) (string, error)
-	FollowUser(userHandle string) error
-	LikeRecentPosts(limit int) error
-}
-
 type recordRequest struct {
 	Repo       string                 `json:"repo"`
 	Collection string                 `json:"collection"`
@@ -34,6 +27,13 @@ type blueskyClient struct {
 	accessToken string
 	did         string
 	httpClient  *http.Client
+}
+
+// ContentDestination defines the interface for content destinations
+type ContentDestination interface {
+	CreatePost(text string) (string, error)
+	FollowUser(userHandle string) error
+	LikeRecentPosts(limit int) error
 }
 
 // New creates a new Bluesky API client
