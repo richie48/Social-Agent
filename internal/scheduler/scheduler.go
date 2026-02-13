@@ -18,7 +18,7 @@ type Scheduler struct {
 	cron          *cron.Cron
 	contentSource twitter.ContentSource
 	socialMedia   bluesky.ContentDestination
-	postGen       *content.Agent
+	postGen       *content.ContentGenerator
 	config        *config.Config
 }
 
