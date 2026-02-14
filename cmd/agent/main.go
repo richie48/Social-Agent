@@ -58,9 +58,9 @@ func main() {
 	// In test mode, run routines once and exit
 	if *testMode {
 		slog.Info("test mode: running routines once")
-		actionScheduler.RunPostRoutine(ctx)
-		actionScheduler.RunFollowRoutine(ctx)
-		actionScheduler.RunLikeRoutine(ctx)
+		actionScheduler.PostRoutine(ctx)
+		actionScheduler.FollowRoutine(ctx)
+		actionScheduler.LikeRoutine(ctx)
 		slog.Info("test mode: all routines completed successfully!")
 		os.Exit(0)
 	}

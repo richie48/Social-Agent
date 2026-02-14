@@ -14,10 +14,9 @@ type Config struct {
 	BlueskyDID         string
 	GeminiAPIKey       string
 	// Agent Configuration
-	PostingScheduleHour int
-	FollowUsersPerDay   int
-	LikePostsPerDay     int
-	MaxContentAgeDays   int
+	PostScheduledHour int
+	FollowUsersPerDay int
+	LikePostsPerDay   int
 }
 
 // Load reads configuration from environment variables and returns config struct
@@ -30,10 +29,9 @@ func Load() *Config {
 		BlueskyDID:         os.Getenv("BLUESKY_DID"),
 		GeminiAPIKey:       os.Getenv("GEMINI_API_KEY"),
 		// TODO: posting should not be done at fixed hours
-		PostingScheduleHour: getEnvInt("POSTING_SCHEDULE_HOUR", 0),
-		FollowUsersPerDay:   getEnvInt("FOLLOW_USERS_PER_DAY", 0),
-		LikePostsPerDay:     getEnvInt("LIKE_POSTS_PER_DAY", 0),
-		MaxContentAgeDays:   getEnvInt("MAX_CONTENT_AGE_DAYS", 0),
+		PostScheduledHour: getEnvInt("POST_SCHEDULED_HOUR", 0),
+		FollowUsersPerDay: getEnvInt("FOLLOW_USERS_PER_DAY", 0),
+		LikePostsPerDay:   getEnvInt("LIKE_POSTS_PER_DAY", 0),
 	}
 }
 

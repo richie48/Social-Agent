@@ -49,9 +49,10 @@ func New(bearerToken string) *twitterClient {
 // It searches for tweets containing keywords about work frustrations.
 func (twitterClient *twitterClient) QueryWorkRantTweets(limit int) ([]Post, error) {
 	// Build query url
-	const Query = "(work OR job OR boss OR office OR coworker OR meeting OR deadline) (rant OR frustrated OR tired OR hate OR awful OR nightmare) lang:en -is:retweet -filter:videos"
+	const query = `(work OR job OR boss OR office OR coworker OR meeting OR deadline) 
+	(rant OR frustrated OR tired OR hate OR awful OR nightmare) lang:en -is:retweet -filter:videos`
 	params := url.Values{}
-	params.Add("query", Query)
+	params.Add("query", query)
 	params.Add("max_results", strconv.Itoa(limit))
 	params.Add("tweet.fields", "created_at")
 	url := twitterClient.searchURL + "?" + params.Encode()
