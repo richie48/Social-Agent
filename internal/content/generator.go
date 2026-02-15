@@ -18,8 +18,8 @@ type ContentGenerator interface {
 	GeneratePost(ctx context.Context, post *twitter.Post) (string, error)
 }
 
-// New creates a new Gemini agent for content generation
-func New(apiKey string) (*geminiAgent, error) {
+// NewGenerator creates a new Gemini agent for content generation
+func NewGenerator(apiKey string) (*geminiAgent, error) {
 	ctx := context.Background()
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
 		APIKey: apiKey,
