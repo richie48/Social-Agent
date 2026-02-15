@@ -177,8 +177,8 @@ func (bskyClient *blueskyClient) FollowUser(userHandle string) error {
 	}
 	defer followResponse.Body.Close()
 
-	if followResp.StatusCode != http.StatusOK {
-		slog.Error("Unexpected status code from follow request", "status_code", followResp.StatusCode, "body", string(followBody))
+	if followResponse.StatusCode != http.StatusOK {
+		slog.Error("Unexpected status code from follow request", "status_code", followResponse.StatusCode)
 		return err
 	}
 
