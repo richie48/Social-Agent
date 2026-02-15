@@ -30,7 +30,7 @@ type twitterClient struct {
 
 // ContentSource defines the interface for getting content from a source
 type ContentSource interface {
-	QueryWorkRantTweets(limit int) ([]Post, error)
+	QueryWorkPosts(limit int) ([]Post, error)
 }
 
 // New creates a new Twitter API client.
@@ -45,9 +45,9 @@ func New(bearerToken string) *twitterClient {
 	}
 }
 
-// QueryWorkRantTweets retrieves recent work-related rants from Twitter.
-// It searches for tweets containing keywords about work frustrations.
-func (twitterClient *twitterClient) QueryWorkRantTweets(limit int) ([]Post, error) {
+// QueryWorkPosts retrieves recent work-related rants from Twitter. It searches for tweets containing
+// keywords about work frustrations.
+func (twitterClient *twitterClient) QueryWorkPosts(limit int) ([]Post, error) {
 	// Build query url
 	const query = `(work OR job OR boss OR office OR coworker OR meeting OR deadline) 
 	(rant OR frustrated OR tired OR hate OR awful OR nightmare) lang:en -is:retweet -filter:videos`

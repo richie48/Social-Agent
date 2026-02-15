@@ -9,7 +9,6 @@ import (
 	"os/signal"
 	"social-agent/config"
 	"social-agent/internal/content"
-	"social-agent/internal/scheduler"
 	"social-agent/internal/social/bluesky"
 	"social-agent/internal/social/twitter"
 	"syscall"
@@ -38,9 +37,9 @@ func main() {
 	// Initialize clients
 	twitterClient := twitter.New(loadedConfig.TwitterBearerToken)
 	blueskyClient := bluesky.New(loadedConfig.BlueskyAccessToken, loadedConfig.BlueskyDID)
-	ContentAgent, err := content.New(loadedConfig.GeminiAPIKey)
+	ContentGenerator, err := content.NewGenerator(loadedConfig.GeminiAPIKey)
 	if err != nil {
-		slog.Error("Failed to initialize social agent", "error", err)
+		slog.Error("Failed to initialize content generator", "error", err)
 		os.Exit(1)
 	}
 
@@ -48,19 +47,19 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	actionScheduler := scheduler.New(
+	ContentManager := content.NewManager(
 		twitterClient,
 		blueskyClient,
-		ContentAgent,
+		ContentGenerator,
 		loadedConfig,
 	)
 
 	// In test mode, run routines once and exit
 	if *testMode {
 		slog.Info("test mode: running routines once")
-		actionScheduler.PostRoutine(ctx)
-		actionScheduler.FollowRoutine(ctx)
-		actionScheduler.LikeRoutine(ctx)
+		ContentManager.PostRoutine(ctx)
+		ContentManager.FollowRoutine(ctx)
+		ContentManager.LikeRoutine(ctx)
 		slog.Info("test mode: all routines completed successfully!")
 		os.Exit(0)
 	}
@@ -69,7 +68,7 @@ func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	if err := actionScheduler.Start(ctx); err != nil {
+	if err := ContentManager.Start(ctx); err != nil {
 		slog.Error("Failed to start scheduler", "error", err)
 		os.Exit(1)
 	}
@@ -77,5 +76,5 @@ func main() {
 	// Wait for shutdown signal
 	<-sigChan
 	slog.Info("Shutdown signal received. Gracefully stopping...")
-	actionScheduler.Stop()
+	ContentManager.Stop()
 }
