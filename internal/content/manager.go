@@ -25,9 +25,9 @@ type contentManager struct {
 func NewManager(
 	contentSource *twitter.ContentSource,
 	contentDestination *bluesky.ContentDestination,
-	contentGenerator *content.ContentGenerator,
+	contentGenerator ContentGenerator,
 	config *config.Config,
-) {
+) *contentManager {
 	return &contentManager{
 		cron:               cron.New(),
 		contentSource:      contentSource,
@@ -41,7 +41,7 @@ func NewManager(
 func (contentManager *contentManager) Start(ctx context.Context) error {
 	// TODO: make posting really work at random time daily
 	postScheduledMinute := rand.Intn(60)
-	cronSpec := fmt.Sprintf("%d %d * * *", postScheduledMinute, s.config.PostScheduledHour)
+	cronSpec := fmt.Sprintf("%d %d * * *", postScheduledMinute, contentManager.config.PostScheduledHour)
 
 	// TODO: Seperate out the routine actions so they run at different time, randomly
 	_, err := contentManager.cron.AddFunc(cronSpec, func() {
@@ -49,9 +49,9 @@ func (contentManager *contentManager) Start(ctx context.Context) error {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		contentManager.postRoutine(ctx)
-		contentManager.followRoutine(ctx)
-		contentManager.likeRoutine(ctx)
+		contentManager.PostRoutine(ctx)
+		contentManager.FollowRoutine(ctx)
+		contentManager.LikeRoutine(ctx)
 	})
 	if err != nil {
 		slog.Error("Failed to add cron job for actions", "hour", contentManager.config.PostScheduledHour, "minute", minute, "error", err)
@@ -72,7 +72,7 @@ func (contentManager *contentManager) Stop() {
 // PostRoutine runs the routine to post content
 func (contentManager *contentManager) PostRoutine(ctx context.Context) {
 	// TODO: This should be in the agent configuration once introduced
-	queryLimit = 3
+	const queryLimit = 3
 	posts, err := contentManager.contentSource.QueryWorkPosts(queryLimit)
 	if err != nil {
 		slog.Error("Failed to get posts from content source", "error", err)

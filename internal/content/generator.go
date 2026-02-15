@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"google.golang.org/genai"
 	"log/slog"
-	"social-GeminiGenerator/internal/social/twitter"
+	"social-agent/internal/social/twitter"
 )
 
 type geminiAgent struct {
@@ -78,7 +78,7 @@ func (geminiAgent *geminiAgent) GeneratePost(ctx context.Context, posts []twitte
 	Generate ONLY the post content, nothing else. provided posts for content ideas: %v
 	`
 
-	response, err := client.Models.GenerateContent(
+	response, err := geminiAgent.client.Models.GenerateContent(
 		ctx,
 		"gemini-2.5-flash",
 		fmt.Sprintf(prompt, posts),
