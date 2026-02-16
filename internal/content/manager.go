@@ -36,7 +36,7 @@ func NewManager(
 	}
 }
 
-// Start initializes and starts the contentManager
+// Start initializes and starts the contentManager using the scheduled time and frequency
 func (contentManager *contentManager) Start(ctx context.Context) error {
 	// TODO: make posting really work at random time daily
 	postScheduledMinute := rand.Intn(60)
@@ -62,13 +62,13 @@ func (contentManager *contentManager) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop gracefully stops the contentManager.
+// Stop gracefully stops the contentManager
 func (contentManager *contentManager) Stop() {
 	contentManager.cron.Stop()
 	slog.Info("content manager stopped!")
 }
 
-// PostRoutine runs the routine to post content
+// PostRoutine runs the routine to post content. Runs routine with context provided
 func (contentManager *contentManager) PostRoutine(ctx context.Context) {
 	// TODO: This should be in the agent configuration once introduced
 	const queryLimit = 3
@@ -93,14 +93,14 @@ func (contentManager *contentManager) PostRoutine(ctx context.Context) {
 	slog.Info("Successfully posted to social media", "post_id", postID)
 }
 
-// FollowRoutine runs the routine to follow users
+// FollowRoutine runs the routine to follow users. Runs routine with context provided
 func (contentManager *contentManager) FollowRoutine(ctx context.Context) {
 	// TODO: Implement, idea at the moment is follow and like should be one routine.
 	// Follow users for the posts i like
 	return
 }
 
-// LikeRoutine runs the routine to like posts
+// LikeRoutine runs the routine to like posts. Runs routine with context provided
 func (contentManager *contentManager) LikeRoutine(ctx context.Context) {
 	// TODO: Add early config validation so check like this are not needed
 	likeCount := contentManager.config.LikePostsPerDay

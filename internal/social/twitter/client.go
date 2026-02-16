@@ -33,7 +33,7 @@ type ContentSource interface {
 	QueryWorkPosts(limit int) ([]Post, error)
 }
 
-// New creates a new Twitter API client.
+// New creates a new Twitter API client
 func New(bearerToken string) *twitterClient {
 	slog.Debug("Initializing Twitter API client with", "timeout", twitterClientTimeout)
 	return &twitterClient{
@@ -46,7 +46,7 @@ func New(bearerToken string) *twitterClient {
 }
 
 // QueryWorkPosts retrieves recent work-related rants from Twitter. It searches for tweets containing
-// keywords about work frustrations.
+// keywords about work frustrations. Return number of post based on 'limit' provided otherwise error
 func (twitterClient *twitterClient) QueryWorkPosts(limit int) ([]Post, error) {
 	// Build query url
 	const query = `(work OR job OR boss OR office OR coworker OR meeting OR deadline) 
