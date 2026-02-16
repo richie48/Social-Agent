@@ -9,22 +9,21 @@ import (
 	"social-agent/config"
 	"social-agent/internal/social/bluesky"
 	"social-agent/internal/social/twitter"
-	"time"
 )
 
 // contentManager manages posting, following, and engagement activities
 type contentManager struct {
 	cron               *cron.Cron
-	contentSource      *twitter.ContentSource
-	contentDestination *bluesky.ContentDestination
-	contentGenerator   *content.ContentGenerator
+	contentSource      twitter.ContentSource
+	contentDestination bluesky.ContentDestination
+	contentGenerator   ContentGenerator
 	config             *config.Config
 }
 
 // NewManager creates a new contentManager
 func NewManager(
-	contentSource *twitter.ContentSource,
-	contentDestination *bluesky.ContentDestination,
+	contentSource twitter.ContentSource,
+	contentDestination bluesky.ContentDestination,
 	contentGenerator ContentGenerator,
 	config *config.Config,
 ) *contentManager {
@@ -54,7 +53,7 @@ func (contentManager *contentManager) Start(ctx context.Context) error {
 		contentManager.LikeRoutine(ctx)
 	})
 	if err != nil {
-		slog.Error("Failed to add cron job for actions", "hour", contentManager.config.PostScheduledHour, "minute", minute, "error", err)
+		slog.Error("Failed to add cron job for actions", "hour", contentManager.config.PostScheduledHour, "minute", postScheduledMinute, "error", err)
 		return err
 	}
 
@@ -79,13 +78,13 @@ func (contentManager *contentManager) PostRoutine(ctx context.Context) {
 		return
 	}
 
-	generatedPost, err := contentManager.contentGenerator.Generate(ctx, Posts)
+	generatedPost, err := contentManager.contentGenerator.GeneratePost(ctx, posts)
 	if err != nil {
 		slog.Error("Failed to generate post using content source", "error", err)
 		return
 	}
 
-	postID, err := contentManager.contentDestination.CreatePost(generatedPost.Content)
+	postID, err := contentManager.contentDestination.CreatePost(generatedPost)
 	if err != nil {
 		slog.Error("Failed to post to social media", "error", err)
 		return
@@ -106,7 +105,7 @@ func (contentManager *contentManager) LikeRoutine(ctx context.Context) {
 	// TODO: Add early config validation so check like this are not needed
 	likeCount := contentManager.config.LikePostsPerDay
 	if likeCount <= 0 {
-		slog.warn("Like routine skipped, LikePostsPerDay need to be greaterthan 0")
+		slog.Warn("Like routine skipped, LikePostsPerDay need to be greaterthan 0")
 		return
 	}
 
