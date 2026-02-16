@@ -34,8 +34,8 @@ func NewGenerator(apiKey string) (*geminiAgent, error) {
 	}, nil
 }
 
-// truncateContent ensures the post fits within social media character limits
-// it truncates the content to the nearest word boundary
+// truncates post to fits within `maxCharacter` limits. Truncates the content to the nearest
+// word boundary
 func truncateContent(content string, maxCharacters int) string {
 	if len(content) <= maxCharacters {
 		return content
@@ -50,8 +50,8 @@ func truncateContent(content string, maxCharacters int) string {
 	return truncatedContent + "..."
 }
 
-// GeneratePost creates a social media post from social media posts using gemini. It takes the
-// content of the post and generates a humorous, relatable post about workplace frustrations
+// GeneratePost generates content to post from `posts` provided using gemini. It takes the content of
+// provided `posts“ and generates content from it. Return string of content if successful, otherwise error
 func (geminiAgent *geminiAgent) GeneratePost(ctx context.Context, posts []twitter.Post) (string, error) {
 	if len(posts) == 0 {
 		errorMessage := "No posts provided for content generation"
