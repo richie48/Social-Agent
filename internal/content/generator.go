@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"google.golang.org/genai"
 	"log/slog"
-	"social-GeminiGenerator/internal/social/twitter"
+	"social-agent/internal/social/twitter"
 )
 
 type geminiAgent struct {
@@ -15,7 +15,7 @@ type geminiAgent struct {
 
 // ContentGenerator generates social media posts from posts
 type ContentGenerator interface {
-	GeneratePost(ctx context.Context, post *twitter.Post) (string, error)
+	GeneratePost(ctx context.Context, post []twitter.Post) (string, error)
 }
 
 // NewGenerator creates a new Gemini agent for content generation
@@ -34,8 +34,8 @@ func NewGenerator(apiKey string) (*geminiAgent, error) {
 	}, nil
 }
 
-// truncateContent ensures the post fits within social media character limits
-// it truncates the content to the nearest word boundary
+// truncates post to fits within `maxCharacter` limits. Truncates the content to the nearest
+// word boundary
 func truncateContent(content string, maxCharacters int) string {
 	if len(content) <= maxCharacters {
 		return content
@@ -50,8 +50,8 @@ func truncateContent(content string, maxCharacters int) string {
 	return truncatedContent + "..."
 }
 
-// GeneratePost creates a social media post from social media posts using gemini. It takes the
-// content of the post and generates a humorous, relatable post about workplace frustrations
+// GeneratePost generates content to post from `posts` provided using gemini. It takes the content of
+// provided `posts“ and generates content from it. Return string of content if successful, otherwise error
 func (geminiAgent *geminiAgent) GeneratePost(ctx context.Context, posts []twitter.Post) (string, error) {
 	if len(posts) == 0 {
 		errorMessage := "No posts provided for content generation"
@@ -78,10 +78,10 @@ func (geminiAgent *geminiAgent) GeneratePost(ctx context.Context, posts []twitte
 	Generate ONLY the post content, nothing else. provided posts for content ideas: %v
 	`
 
-	response, err := client.Models.GenerateContent(
+	response, err := geminiAgent.client.Models.GenerateContent(
 		ctx,
 		"gemini-2.5-flash",
-		fmt.Sprintf(prompt, posts),
+		genai.Text(fmt.Sprintf(prompt, posts)),
 		nil,
 	)
 	if err != nil {
@@ -89,13 +89,7 @@ func (geminiAgent *geminiAgent) GeneratePost(ctx context.Context, posts []twitte
 		return "", err
 	}
 
-	if len(response.Candidates) == 0 {
-		errorMessage := "Gemini response contains no candidates"
-		slog.Error(errorMessage)
-		return "", errors.New(errorMessage)
-	}
-
-	generatedPost = response.Candidates[0].Content.Parts[0].Text
+	generatedPost := response.Text()
 	if generatedPost == "" {
 		errorMessage := "No text content in Gemini response"
 		slog.Error(errorMessage)
