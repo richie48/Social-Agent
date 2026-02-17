@@ -52,7 +52,7 @@ func (twitterClient *twitterClient) QueryWorkPosts(limit int) ([]Post, error) {
 	const query = `(work OR job OR boss OR office OR coworker OR meeting OR deadline) 
 	(rant OR frustrated OR tired OR hate OR awful OR nightmare) lang:en -is:retweet -filter:videos`
 	params := url.Values{}
-	params.Add("query", query)
+	params.Add("query", url.QueryEscape(query))
 	params.Add("max_results", strconv.Itoa(limit))
 	params.Add("tweet.fields", "created_at")
 	url := twitterClient.searchURL + "?" + params.Encode()
